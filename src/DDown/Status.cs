@@ -10,6 +10,7 @@ namespace DDown
         public long Count { get { return Length - 1; } }
         public bool IsRangeSupported { get; set; }
         internal List<Partition> Partitions { get; set; } = new List<Partition>();
+        public int PartitionCount => Partitions.Count;
 
         public override string ToString()
         {

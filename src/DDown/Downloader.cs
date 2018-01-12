@@ -35,7 +35,7 @@ namespace DDown
             _fullPath = Path.Combine(_options.OutputFolder, _fileName);
         }
         //CancellationToken token = default
-        public async Task StartAsync(IProgress<int> progress = null)
+        public async Task StartAsync(IProgress<(int, int)> progress = null)
         {
             using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead))
             {
@@ -76,7 +76,7 @@ namespace DDown
             //merge all
             await MergePartitionsAsync();
         }
-        private async Task DownloadPartitionAsync(Partition partition, IProgress<int> progress = null)
+        private async Task DownloadPartitionAsync(Partition partition, IProgress<(int, int)> progress = null)
         {
             HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, _uri);
             message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
@@ -114,8 +114,7 @@ namespace DDown
                             {
                                 await file.WriteAsync(buffer, 0, count);
                                 partition.Write(count);
-                                progress?.Report(partition.Id);
-                                //Console.WriteLine(partition.Id + " " + partition.Current + " " + partition.Length + " " + Thread.CurrentThread.ManagedThreadId);
+                                progress?.Report((partition.Id, partition.Percentage));
                             }
                         }
 

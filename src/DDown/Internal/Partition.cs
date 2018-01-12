@@ -17,9 +17,10 @@ namespace DDown.Internal
         public int Id { get; }
 
         public long Length { get; }
-        public long Current { get { return _current; } }
+        public long Current { get => _current; }
         public long Start { get; }
         public long End { get; }
+        public int Percentage { get =>  (int)((this._current * 100) / (this.Length)); }
         public void Write(long value)
         {
             if (_current + value > Length)

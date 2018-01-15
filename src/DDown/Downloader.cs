@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.Serialization.Json;
 using System.Threading.Tasks;
 using DDown.Internal;
 
@@ -82,13 +83,12 @@ namespace DDown
             message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
             message.Headers.Range.Unit = "bytes";
             message.Headers.Range.Ranges.Add(partition.GetHeader());
+            
             using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
 
-                var fileName = partition.Id + "." + _fileName;
-
-                using (var file = new FileStream(Path.Combine(_options.OutputFolder, fileName), FileMode.Create, FileAccess.Write))
+                using (var file = new FileStream(partition.Path, FileMode.Create, FileAccess.Write))
                 using (Stream read = await response.Content.ReadAsStreamAsync())
                 {
                     var buffer = new byte[8192];
@@ -114,7 +114,7 @@ namespace DDown
                             {
                                 await file.WriteAsync(buffer, 0, count);
                                 partition.Write(count);
-                                progress?.Report((partition.Id, partition.Percentage));
+                                progress?.Report((partition.Id, partition.Percent));
                             }
                         }
 
@@ -125,7 +125,6 @@ namespace DDown
             }
 
         }
-
         protected Status EnsureContentIsDownloadable(HttpResponseMessage response)
         {
             var result = new Status()
@@ -141,7 +140,6 @@ namespace DDown
 
             return result;
         }
-
         protected void CalculatePartitions()
         {
             if (_status == null)
@@ -160,20 +158,19 @@ namespace DDown
                 else
                     end = start + median - 1;
 
+                var fileName = i + "." + _fileName;
+                var path = Path.Combine(_options.OutputFolder, fileName);
+
                 _status.Partitions.Add(
-                    new Partition(i, start, end)
+                    new Partition(i, path, start, end)
                 );
 
                 start += median;
             }
-            //Console.WriteLine(_status.Partitions.Sum(i => i.Length) + " " + _status.Length);
-            //foreach (var item in _status.Partitions)
-            //Console.WriteLine("Partition {0} {1}", item.Id, item.GetHeader());
 
             /*if(_partitions.Sum(i => i.Length) != _status.Length)
                 throw new Exception("Not equal part of sizes");*/
         }
-
         protected async Task MergePartitionsAsync()
         {
             using (var file = new FileStream(Path.Combine(_options.OutputFolder, _fileName), FileMode.Create, FileAccess.Write))
@@ -192,6 +189,36 @@ namespace DDown
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Save current partitions status of the downloader
+        /// </summary>
+        public void SavePartitions()
+        {
+            var id = Guid.NewGuid();
+            var saveModel = new Save();
+            saveModel.Id = id.ToString();
+            saveModel.Partitions = _status.Partitions;
+            saveModel.Url = _uri.OriginalString;
+
+            File.WriteAllText(id + ".json", saveModel.ToString());
+        }
+
+
+        public async Task PauseAsync()
+        {
+
+        }
+
+        public async Task ResumeAsync()
+        {
+
+        }
+
+        public async Task StopAsync()
+        {
+
         }
     }
 }

@@ -108,7 +108,7 @@ namespace DDown
 
                             if (count == 0)
                             {
-                                break; // it should handled
+                                throw new Exception("There exist a problem with source.");
                             }
                             else
                             {
@@ -168,7 +168,7 @@ namespace DDown
             }
             //Console.WriteLine(_status.Partitions.Sum(i => i.Length) + " " + _status.Length);
             //foreach (var item in _status.Partitions)
-                //Console.WriteLine("Partition {0} {1}", item.Id, item.GetHeader());
+            //Console.WriteLine("Partition {0} {1}", item.Id, item.GetHeader());
 
             /*if(_partitions.Sum(i => i.Length) != _status.Length)
                 throw new Exception("Not equal part of sizes");*/

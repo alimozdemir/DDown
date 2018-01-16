@@ -32,8 +32,11 @@ namespace DDown
             _options = options;
             _uri = uri;
 
-            _fileName = Utility.GetFileName(_uri);
+            _fileName = FileHelper.GetFileName(_uri);
             _fullPath = Path.Combine(_options.OutputFolder, _fileName);
+
+            //Ensure the necessary folders are created
+            FileHelper.EnsureFoldersCreated();
         }
         //CancellationToken token = default
         public async Task StartAsync(IProgress<(int, int)> progress = null)
@@ -83,7 +86,7 @@ namespace DDown
             message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
             message.Headers.Range.Unit = "bytes";
             message.Headers.Range.Ranges.Add(partition.GetHeader());
-            
+
             using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
@@ -159,7 +162,7 @@ namespace DDown
                     end = start + median - 1;
 
                 var fileName = i + "." + _fileName;
-                var path = Path.Combine(_options.OutputFolder, fileName);
+                var path = FileHelper.GetPartitionPath(fileName);
 
                 _status.Partitions.Add(
                     new Partition(i, path, start, end)
@@ -173,19 +176,18 @@ namespace DDown
         }
         protected async Task MergePartitionsAsync()
         {
-            using (var file = new FileStream(Path.Combine(_options.OutputFolder, _fileName), FileMode.Create, FileAccess.Write))
+            using (var file = new FileStream(_fullPath, FileMode.Create, FileAccess.Write))
             {
                 foreach (var p in _status.Partitions)
                 {
-                    var tempFilePath = Path.Combine(_options.OutputFolder, p.Id + "." + _fileName);
-                    if (File.Exists(tempFilePath))
+                    if (File.Exists(p.Path))
                     {
-                        using (var partitionFile = new FileStream(tempFilePath, FileMode.Open, FileAccess.Read))
+                        using (var partitionFile = new FileStream(p.Path, FileMode.Open, FileAccess.Read))
                         {
                             await partitionFile.CopyToAsync(file);
                         }
 
-                        File.Delete(tempFilePath);
+                        File.Delete(p.Path);
                     }
                 }
             }
@@ -196,13 +198,16 @@ namespace DDown
         /// </summary>
         public void SavePartitions()
         {
-            var id = Guid.NewGuid();
-            var saveModel = new Save();
-            saveModel.Id = id.ToString();
-            saveModel.Partitions = _status.Partitions;
-            saveModel.Url = _uri.OriginalString;
+            Infrastructures.SaveModelFactory.SetDownload(this);
+        }
 
-            File.WriteAllText(id + ".json", saveModel.ToString());
+        internal List<Partition> GetPartitions()
+        {
+            return _status.Partitions;
+        }
+        internal string GetUrl()
+        {
+            return _uri.OriginalString;
         }
 
 

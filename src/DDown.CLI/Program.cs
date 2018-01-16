@@ -17,12 +17,12 @@ namespace DDown.CLI
 
             Console.WriteLine("Preparing..!");
             var status = await downloader.PrepareAsync();
-            downloader.SavePartitions();
+            //downloader.SavePartitions();
             /*for (int i = 0; i < status.PartitionCount; i++)
             {
                 indicators.Add(new Indicator($"{i + 1}", 100));
             }*/
-            return;
+            //return;
             var progressIndicator = new Progress<(int, int)>(ReportProgress);
             
             Stopwatch sw = new Stopwatch();
@@ -33,7 +33,7 @@ namespace DDown.CLI
             Console.WriteLine("Ended " + sw.ElapsedMilliseconds);
 
             Console.WriteLine("Merging..!");
-            await downloader.MergeAsync();
+            //await downloader.MergeAsync();
 
             Console.WriteLine("Download is finished!");
 

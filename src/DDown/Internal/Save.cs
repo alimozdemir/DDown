@@ -9,7 +9,7 @@ namespace DDown.Internal
         public string Url { get; set; }
         public List<Partition> Partitions { get; set; }
 
-        public override string ToString()
+        public string Serialize()
         {
             return JsonConvert.SerializeObject(this, Formatting.Indented);
         }

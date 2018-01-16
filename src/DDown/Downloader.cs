@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.Serialization.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using DDown.Internal;
 
@@ -11,6 +12,7 @@ namespace DDown
 {
     public class Downloader
     {
+        #region Constructors and Variables
         private static HttpClient _staticClient = new HttpClient();
         private static Options _staticOptions = new Options();
         HttpClient _client;
@@ -38,95 +40,16 @@ namespace DDown
             //Ensure the necessary folders are created
             FileHelper.EnsureFoldersCreated();
         }
+        #endregion
+
         //CancellationToken token = default
-        public async Task StartAsync(IProgress<(int, int)> progress = null)
-        {
-            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead))
-            {
-                response.EnsureSuccessStatusCode();
-
-                /*Parallel.ForEach(_partitions, async (p) =>
-                {
-                    await DownloadPartitionAsync(p);
-                });*/
-
-                List<Task> tasks = new List<Task>();
-
-                foreach (var item in _status.Partitions)
-                    tasks.Add(DownloadPartitionAsync(item, progress));
-
-                Task.WaitAll(tasks.ToArray());
-            }
-        }
-        public async Task<Status> PrepareAsync()
-        {
-            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead))
-            {
-                response.EnsureSuccessStatusCode();
-                _status = EnsureContentIsDownloadable(response);
-                CalculatePartitions();
-
-                if (_options.Override)
-                    File.Delete(_fullPath);
-            }
-
-            return _status;
-        }
         public async Task MergeAsync()
         {
             if (_status.Partitions.Any(i => !i.IsFinished()))
-                throw new Exception("Someting went wrong, some of the partitions does not completed.");
+                throw new Exception("Someting went wrong, some of the partitions does not completed. Also, you can't merge the paused or stopped downloads");
 
             //merge all
             await MergePartitionsAsync();
-        }
-        private async Task DownloadPartitionAsync(Partition partition, IProgress<(int, int)> progress = null)
-        {
-            HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, _uri);
-            message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
-            message.Headers.Range.Unit = "bytes";
-            message.Headers.Range.Ranges.Add(partition.GetHeader());
-
-            using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead))
-            {
-                response.EnsureSuccessStatusCode();
-
-                using (var file = new FileStream(partition.Path, FileMode.Create, FileAccess.Write))
-                using (Stream read = await response.Content.ReadAsStreamAsync())
-                {
-                    var buffer = new byte[8192];
-
-                    do
-                    {
-                        int requestSize = 0;
-
-                        if (partition.Current + buffer.Length > partition.Length)
-                            requestSize = (int)partition.Length - (int)partition.Current;
-                        else
-                            requestSize = buffer.Length;
-
-                        if (requestSize > 0)
-                        {
-                            var count = await read.ReadAsync(buffer, 0, requestSize);
-
-                            if (count == 0)
-                            {
-                                throw new Exception("There exist a problem with source.");
-                            }
-                            else
-                            {
-                                await file.WriteAsync(buffer, 0, count);
-                                partition.Write(count);
-                                progress?.Report((partition.Id, partition.Percent));
-                            }
-                        }
-
-                    }
-                    while (!partition.IsFinished());
-
-                }
-            }
-
         }
         protected Status EnsureContentIsDownloadable(HttpResponseMessage response)
         {
@@ -201,15 +124,6 @@ namespace DDown
             Infrastructures.SaveModelFactory.SetDownload(this);
         }
 
-        internal List<Partition> GetPartitions()
-        {
-            return _status.Partitions;
-        }
-        internal string GetUrl()
-        {
-            return _uri.OriginalString;
-        }
-
 
         public async Task PauseAsync()
         {
@@ -225,5 +139,132 @@ namespace DDown
         {
 
         }
+        #region Overload methods
+
+        public Task StartAsync()
+        {
+            return StartAsync(null, CancellationToken.None);
+        }
+        
+        public Task StartAsync(IProgress<(int, int)> progress)
+        {
+            return StartAsync(progress, CancellationToken.None);
+        }
+        
+        public Task StartAsync(CancellationToken token)
+        {
+            return StartAsync(null, token);
+        }
+        
+        public Task<Status> PrepareAsync()
+        {
+            return PrepareAsync(CancellationToken.None);
+        }
+
+        #endregion
+
+
+        #region Core methods
+
+        public async Task<Status> PrepareAsync(CancellationToken token)
+        {
+            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead, token))
+            {
+                response.EnsureSuccessStatusCode();
+                _status = EnsureContentIsDownloadable(response);
+                CalculatePartitions();
+
+                if (_options.Override)
+                    File.Delete(_fullPath);
+            }
+
+            return _status;
+        }
+
+        public async Task StartAsync(IProgress<(int, int)> progress, CancellationToken token)
+        {
+            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead, token))
+            {
+                response.EnsureSuccessStatusCode();
+
+                /*Parallel.ForEach(_partitions, async (p) =>
+                {
+                    await DownloadPartitionAsync(p);
+                });*/
+
+                List<Task> tasks = new List<Task>();
+
+                foreach (var item in _status.Partitions)
+                    tasks.Add(DownloadPartitionAsync(item, progress, token));
+
+                Task.WaitAll(tasks.ToArray());
+            }
+        }
+
+        private async Task DownloadPartitionAsync(Partition partition, IProgress<(int, int)> progress, CancellationToken token)
+        {
+            HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, _uri);
+            message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
+            message.Headers.Range.Unit = "bytes";
+            message.Headers.Range.Ranges.Add(partition.GetHeader());
+
+            using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, token))
+            {
+                response.EnsureSuccessStatusCode();
+
+                using (var file = new FileStream(partition.Path, FileMode.Create, FileAccess.Write))
+                using (Stream read = await response.Content.ReadAsStreamAsync())
+                {
+                    var buffer = new byte[8192];
+
+                    do
+                    {
+                        if (token.IsCancellationRequested)
+                            break;
+
+                        int requestSize = 0;
+
+                        if (partition.Current + buffer.Length > partition.Length)
+                            requestSize = (int)partition.Length - (int)partition.Current;
+                        else
+                            requestSize = buffer.Length;
+
+                        if (requestSize > 0)
+                        {
+                            var count = await read.ReadAsync(buffer, 0, requestSize, token);
+
+                            if (count == 0)
+                            {
+                                throw new Exception("There exist a problem with source.");
+                            }
+                            else
+                            {
+                                await file.WriteAsync(buffer, 0, count);
+                                partition.Write(count);
+                                progress?.Report((partition.Id, partition.Percent));
+                            }
+                        }
+
+                    }
+                    while (!partition.IsFinished());
+
+                }
+            }
+
+        }
+        #endregion
+
+        #region Internal methods and properties
+
+        internal List<Partition> GetPartitions()
+        {
+            return _status.Partitions;
+        }
+        internal string GetUrl()
+        {
+            return _uri.OriginalString;
+        }
+
+        #endregion
     }
 }

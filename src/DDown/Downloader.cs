@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Runtime.Serialization.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using DDown.Infrastructures;
 using DDown.Internal;
 
 namespace DDown
@@ -42,7 +43,6 @@ namespace DDown
         }
         #endregion
 
-        //CancellationToken token = default
         public async Task MergeAsync()
         {
             if (_status.Partitions.Any(i => !i.IsFinished()))
@@ -51,70 +51,7 @@ namespace DDown
             //merge all
             await MergePartitionsAsync();
         }
-        protected Status EnsureContentIsDownloadable(HttpResponseMessage response)
-        {
-            var result = new Status()
-            {
-                Length = response.Content.Headers.ContentLength.GetValueOrDefault(),
-                IsRangeSupported = response.Headers.AcceptRanges.ToString() == "bytes"
-            };
 
-            if (result.Length == 0)
-            {
-                throw new ArgumentException("The content is not downloadable.");
-            }
-
-            return result;
-        }
-        protected void CalculatePartitions()
-        {
-            if (_status == null)
-                throw new ArgumentException("EnsureContentIsDownloadable must be called before CalculatePartitions");
-            _options.ConnectionCount = 4;
-
-            var median = _status.Length / _options.ConnectionCount;
-            long start = 0, end = 0;
-            for (int i = 0; i < _options.ConnectionCount; i++)
-            {
-                // This is a quick fix, remain part could be lost, if iteratively sum up to end
-                if (_options.ConnectionCount - 1 == i)
-                    end = _status.Length - 1;
-                else if (start + median >= _status.Length)
-                    end = _status.Length;
-                else
-                    end = start + median - 1;
-
-                var fileName = i + "." + _fileName;
-                var path = FileHelper.GetPartitionPath(fileName);
-
-                _status.Partitions.Add(
-                    new Partition(i, path, start, end)
-                );
-
-                start += median;
-            }
-
-            /*if(_partitions.Sum(i => i.Length) != _status.Length)
-                throw new Exception("Not equal part of sizes");*/
-        }
-        protected async Task MergePartitionsAsync()
-        {
-            using (var file = new FileStream(_fullPath, FileMode.Create, FileAccess.Write))
-            {
-                foreach (var p in _status.Partitions)
-                {
-                    if (File.Exists(p.Path))
-                    {
-                        using (var partitionFile = new FileStream(p.Path, FileMode.Open, FileAccess.Read))
-                        {
-                            await partitionFile.CopyToAsync(file);
-                        }
-
-                        File.Delete(p.Path);
-                    }
-                }
-            }
-        }
 
         /// <summary>
         /// Save current partitions status of the downloader
@@ -139,30 +76,30 @@ namespace DDown
         {
 
         }
+
         #region Overload methods
 
         public Task StartAsync()
         {
             return StartAsync(null, CancellationToken.None);
         }
-        
+
         public Task StartAsync(IProgress<(int, int)> progress)
         {
             return StartAsync(progress, CancellationToken.None);
         }
-        
+
         public Task StartAsync(CancellationToken token)
         {
             return StartAsync(null, token);
         }
-        
+
         public Task<Status> PrepareAsync()
         {
             return PrepareAsync(CancellationToken.None);
         }
 
         #endregion
-
 
         #region Core methods
 
@@ -252,6 +189,25 @@ namespace DDown
             }
 
         }
+
+        protected async Task MergePartitionsAsync()
+        {
+            using (var file = new FileStream(_fullPath, FileMode.Create, FileAccess.Write))
+            {
+                foreach (var p in _status.Partitions)
+                {
+                    if (File.Exists(p.Path))
+                    {
+                        using (var partitionFile = new FileStream(p.Path, FileMode.Open, FileAccess.Read))
+                        {
+                            await partitionFile.CopyToAsync(file);
+                        }
+
+                        File.Delete(p.Path);
+                    }
+                }
+            }
+        }
         #endregion
 
         #region Internal methods and properties
@@ -265,6 +221,97 @@ namespace DDown
             return _uri.OriginalString;
         }
 
+        protected Status EnsureContentIsDownloadable(HttpResponseMessage response)
+        {
+            var result = new Status()
+            {
+                Length = response.Content.Headers.ContentLength.GetValueOrDefault(),
+                IsRangeSupported = response.Headers.AcceptRanges.ToString() == "bytes"
+            };
+
+            if (result.Length == 0)
+            {
+                throw new ArgumentException("The content is not downloadable.");
+            }
+
+            return result;
+        }
+        protected void CalculatePartitions()
+        {
+            if (_status == null)
+                throw new ArgumentException("EnsureContentIsDownloadable must be called before CalculatePartitions");
+            _options.ConnectionCount = 4;
+
+            var median = _status.Length / _options.ConnectionCount;
+            long start = 0, end = 0;
+            for (int i = 0; i < _options.ConnectionCount; i++)
+            {
+                // This is a quick fix, remain part could be lost, if iteratively sum up to end
+                if (_options.ConnectionCount - 1 == i)
+                    end = _status.Length - 1;
+                else if (start + median >= _status.Length)
+                    end = _status.Length;
+                else
+                    end = start + median - 1;
+
+                var fileName = i + "." + _fileName;
+                var path = FileHelper.GetPartitionPath(fileName);
+
+                _status.Partitions.Add(
+                    new Partition(i, path, start, end)
+                );
+
+                start += median;
+            }
+
+            /*if(_partitions.Sum(i => i.Length) != _status.Length)
+                throw new Exception("Not equal part of sizes");*/
+        }
+
+        internal Save CheckForUncompleted()
+        {
+            var model = CheckForSaveModel();
+
+            if(model != null)
+            {
+
+            }
+
+            return model;
+        }
+
+        internal void CalculatePartitionsRemain(Save model)
+        {
+            if (_status == null)
+                throw new ArgumentException("EnsureContentIsDownloadable must be called before CalculatePartitions");
+                
+            var count = model.Partitions.Count;
+
+            long start = 0, end = 0;
+            for (int i = 0; i < _options.ConnectionCount; i++)
+            {
+
+            }
+
+            /*if(_partitions.Sum(i => i.Length) != _status.Length)
+                throw new Exception("Not equal part of sizes");*/
+        }
+
+        
+
+        internal Save CheckForSaveModel()
+        {
+            var files = FileHelper.GetAllFilesInSavedFolder();
+
+            foreach (var item in files)
+            {
+                var model = SaveModelFactory.GetSaveModel(item);
+                if (model.Url.Equals(_uri.OriginalString))
+                    return model; 
+            }
+
+            return null;
+        }
         #endregion
     }
 }

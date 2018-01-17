@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using DDown.Internal;
+using Newtonsoft.Json;
 
 namespace DDown.Infrastructures
 {
@@ -16,6 +17,12 @@ namespace DDown.Infrastructures
             saveModel.Url = download.GetUrl();
 
             File.WriteAllText(FileHelper.GetSavePath(id + ".json"), saveModel.Serialize());
+        }
+
+        public static Save GetSaveModel(string path)
+        {
+            var text = File.ReadAllText(path);
+            return JsonConvert.DeserializeObject<Save>(text);
         }
     }
 }

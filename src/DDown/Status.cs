@@ -6,6 +6,7 @@ namespace DDown
 {
     public class Status
     {
+        public bool Done { get; set; }
         /// <summary>
         /// This value shows the download is continued or started from beginning.
         /// </summary>

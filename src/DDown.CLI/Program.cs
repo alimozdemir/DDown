@@ -9,14 +9,23 @@ namespace DDown.CLI
     class Program
     {
         static List<Indicator> indicators = new List<Indicator>();
+        private static CancellationTokenSource _cancelSource;
+        private static bool _continued;
+
         async static Task Main(string[] args)
         {
             Console.Clear();
-            
-            Downloader downloader = new Downloader("https://addons-origin.cursecdn.com/files/2477/989/Bagnon_7.3.2.zip");
+            _cancelSource = new CancellationTokenSource();
+
+            var downloader = new Downloader("https://addons-origin.cursecdn.com/files/2477/989/Bagnon_7.3.2.zip", _cancelSource.Token);
 
             Console.WriteLine("Preparing..!");
             var status = await downloader.PrepareAsync();
+            _continued = status.Continued;
+
+            if (status.Continued)
+                Console.WriteLine($"Download is continued");
+
             //downloader.SavePartitions();
             /*for (int i = 0; i < status.PartitionCount; i++)
             {
@@ -24,12 +33,12 @@ namespace DDown.CLI
             }*/
             //return;
             var progressIndicator = new Progress<(int, int)>(ReportProgress);
-            
+
             Stopwatch sw = new Stopwatch();
             sw.Start();
             await downloader.StartAsync(progressIndicator);
             sw.Stop();
-            //Indicator.Clear();
+
             Console.WriteLine("Ended " + sw.ElapsedMilliseconds);
 
             Console.WriteLine("Merging..!");
@@ -39,8 +48,13 @@ namespace DDown.CLI
 
         }
 
-        static void ReportProgress((int index, int percent) data)
+        static async void ReportProgress((int index, int percent) data)
         {
+            /*if (!_continued && data.percent > 80)
+            {
+                _cancelSource.Cancel();
+                //await _downloader.PauseAsync();
+            }*/
             Console.WriteLine($"Partition Index = {data.index}, Percentange  {data.percent}");
         }
     }

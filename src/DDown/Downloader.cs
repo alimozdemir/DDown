@@ -21,19 +21,33 @@ namespace DDown
         Options _options;
         Status _status;
         string _fileName, _fullPath;
-        public Downloader(string url) : this(new Uri(url), _staticClient, _staticOptions)
+        CancellationToken _token;
+        public Downloader(string url)
+                : this(new Uri(url), _staticClient, _staticOptions, CancellationToken.None)
         {
         }
 
-        public Downloader(Uri uri) : this(uri, _staticClient, _staticOptions)
+        public Downloader(string url, CancellationToken token)
+                : this(new Uri(url), _staticClient, _staticOptions, token)
         {
         }
 
-        public Downloader(Uri uri, HttpClient client, Options options)
+        public Downloader(Uri uri)
+                : this(uri, _staticClient, _staticOptions, CancellationToken.None)
+        {
+        }
+
+        public Downloader(Uri uri, CancellationToken token)
+                : this(uri, _staticClient, _staticOptions, token)
+        {
+        }
+
+        public Downloader(Uri uri, HttpClient client, Options options, CancellationToken token)
         {
             _client = client;
             _options = options;
             _uri = uri;
+            _token = token;
 
             _fileName = FileHelper.GetFileName(_uri);
             _fullPath = Path.Combine(_options.OutputFolder, _fileName);
@@ -52,19 +66,9 @@ namespace DDown
             await MergePartitionsAsync();
         }
 
-
-        /// <summary>
-        /// Save current partitions status of the downloader
-        /// </summary>
-        public void SavePartitions()
-        {
-            Infrastructures.SaveModelFactory.SetDownload(this);
-        }
-
-
         public async Task PauseAsync()
         {
-
+            SavePartitions();
         }
 
         public async Task ResumeAsync()
@@ -81,46 +85,40 @@ namespace DDown
 
         public Task StartAsync()
         {
-            return StartAsync(null, CancellationToken.None);
-        }
-
-        public Task StartAsync(IProgress<(int, int)> progress)
-        {
-            return StartAsync(progress, CancellationToken.None);
-        }
-
-        public Task StartAsync(CancellationToken token)
-        {
-            return StartAsync(null, token);
-        }
-
-        public Task<Status> PrepareAsync()
-        {
-            return PrepareAsync(CancellationToken.None);
+            return StartAsync(null);
         }
 
         #endregion
 
         #region Core methods
 
-        public async Task<Status> PrepareAsync(CancellationToken token)
+        public async Task<Status> PrepareAsync()
         {
-            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead, token))
+            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead, _token))
             {
                 response.EnsureSuccessStatusCode();
                 _status = EnsureContentIsDownloadable(response);
-                CalculatePartitions();
 
-                if (_options.Override)
-                    File.Delete(_fullPath);
+                var saveModel = CheckForUncompleted();
+
+                if (saveModel == null)
+                {
+                    CalculatePartitions();
+
+                    if (_options.Override)
+                        File.Delete(_fullPath);
+                }
+                else
+                    _status.Continued = true;
+
             }
 
             return _status;
         }
 
-        public async Task StartAsync(IProgress<(int, int)> progress, CancellationToken token)
+        public async Task StartAsync(IProgress<(int, int)> progress)
         {
-            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead, token))
+            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead, _token))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -132,20 +130,20 @@ namespace DDown
                 List<Task> tasks = new List<Task>();
 
                 foreach (var item in _status.Partitions)
-                    tasks.Add(DownloadPartitionAsync(item, progress, token));
+                    tasks.Add(DownloadPartitionAsync(item, progress));
 
                 Task.WaitAll(tasks.ToArray());
             }
         }
 
-        private async Task DownloadPartitionAsync(Partition partition, IProgress<(int, int)> progress, CancellationToken token)
+        private async Task DownloadPartitionAsync(Partition partition, IProgress<(int, int)> progress)
         {
             HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, _uri);
             message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
             message.Headers.Range.Unit = "bytes";
             message.Headers.Range.Ranges.Add(partition.GetHeader());
 
-            using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, token))
+            using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, _token))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -156,8 +154,11 @@ namespace DDown
 
                     do
                     {
-                        if (token.IsCancellationRequested)
+                        if (_token.IsCancellationRequested)
+                        {
+                            SavePartitions();
                             break;
+                        }
 
                         int requestSize = 0;
 
@@ -168,7 +169,7 @@ namespace DDown
 
                         if (requestSize > 0)
                         {
-                            var count = await read.ReadAsync(buffer, 0, requestSize, token);
+                            var count = await read.ReadAsync(buffer, 0, requestSize, _token);
 
                             if (count == 0)
                             {
@@ -268,13 +269,18 @@ namespace DDown
                 throw new Exception("Not equal part of sizes");*/
         }
 
+        internal void SavePartitions()
+        {
+            Infrastructures.SaveModelFactory.SetDownload(this);
+        }
+
         internal Save CheckForUncompleted()
         {
             var model = CheckForSaveModel();
 
-            if(model != null)
+            if (model != null)
             {
-
+                CalculatePartitionsRemain(model);
             }
 
             return model;
@@ -284,20 +290,20 @@ namespace DDown
         {
             if (_status == null)
                 throw new ArgumentException("EnsureContentIsDownloadable must be called before CalculatePartitions");
-                
-            var count = model.Partitions.Count;
 
-            long start = 0, end = 0;
-            for (int i = 0; i < _options.ConnectionCount; i++)
+            /*_status = new Status()
             {
+                Length = model.Length,
+                IsRangeSupported = model.IsRangeSupported
+            };*/
 
-            }
+            _status.Partitions = model.Partitions;
 
             /*if(_partitions.Sum(i => i.Length) != _status.Length)
                 throw new Exception("Not equal part of sizes");*/
         }
 
-        
+
 
         internal Save CheckForSaveModel()
         {
@@ -307,7 +313,7 @@ namespace DDown
             {
                 var model = SaveModelFactory.GetSaveModel(item);
                 if (model.Url.Equals(_uri.OriginalString))
-                    return model; 
+                    return model;
             }
 
             return null;

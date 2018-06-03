@@ -21,33 +21,21 @@ namespace DDown
         Options _options;
         Status _status;
         string _fileName, _fullPath;
-        CancellationToken _token;
         public Downloader(string url)
-                : this(new Uri(url), _staticClient, _staticOptions, CancellationToken.None)
-        {
-        }
-
-        public Downloader(string url, CancellationToken token)
-                : this(new Uri(url), _staticClient, _staticOptions, token)
+                : this(new Uri(url), _staticClient, _staticOptions)
         {
         }
 
         public Downloader(Uri uri)
-                : this(uri, _staticClient, _staticOptions, CancellationToken.None)
+                : this(uri, _staticClient, _staticOptions)
         {
         }
 
-        public Downloader(Uri uri, CancellationToken token)
-                : this(uri, _staticClient, _staticOptions, token)
-        {
-        }
-
-        public Downloader(Uri uri, HttpClient client, Options options, CancellationToken token)
+        public Downloader(Uri uri, HttpClient client, Options options)
         {
             _client = client;
             _options = options;
             _uri = uri;
-            _token = token;
 
             _fileName = FileHelper.GetFileName(_uri);
             _fullPath = Path.Combine(_options.OutputFolder, _fileName);
@@ -60,7 +48,7 @@ namespace DDown
         public async Task MergeAsync()
         {
             if (_status.Partitions.Any(i => !i.IsFinished()))
-                throw new Exception("Someting went wrong, some of the partitions does not completed. Also, you can't merge the paused or stopped downloads");
+                throw new Exception("Something went wrong, some of the partitions does not completed. Also, you can't merge the paused or stopped downloads");
 
             //merge all
             await MergePartitionsAsync();
@@ -94,7 +82,7 @@ namespace DDown
 
         public async Task<Status> PrepareAsync()
         {
-            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead, _token))
+            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
                 _status = EnsureContentIsDownloadable(response);
@@ -118,7 +106,7 @@ namespace DDown
 
         public async Task StartAsync(IProgress<(int, int)> progress)
         {
-            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead, _token))
+            using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -143,7 +131,7 @@ namespace DDown
             message.Headers.Range.Unit = "bytes";
             message.Headers.Range.Ranges.Add(partition.GetHeader());
 
-            using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, _token))
+            using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -154,12 +142,6 @@ namespace DDown
 
                     do
                     {
-                        if (_token.IsCancellationRequested)
-                        {
-                            SavePartitions();
-                            break;
-                        }
-
                         int requestSize = 0;
 
                         if (partition.Current + buffer.Length > partition.Length)
@@ -169,7 +151,7 @@ namespace DDown
 
                         if (requestSize > 0)
                         {
-                            var count = await read.ReadAsync(buffer, 0, requestSize, _token);
+                            var count = await read.ReadAsync(buffer, 0, requestSize);
 
                             if (count == 0)
                             {
@@ -271,6 +253,7 @@ namespace DDown
 
         internal void SavePartitions()
         {
+            Console.WriteLine("SavePartitions");
             Infrastructures.SaveModelFactory.SetDownload(this);
         }
 

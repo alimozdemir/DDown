@@ -7,6 +7,11 @@ namespace DDown.Infrastructures
 {
     internal class SaveModelFactory
     {
+        public SaveModelFactory()
+        {
+            
+        }
+        
         public static void SetDownload(Downloader download)
         {
             var id = Guid.NewGuid();

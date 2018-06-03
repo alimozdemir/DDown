@@ -5,8 +5,8 @@ namespace DDown.Internal
 {
     internal static class FileHelper
     {
-        public const string PartitionFolder = "DDown.Partitions",
-                            SavedFolder = "DDown.Saved";
+        public const string PartitionFolder = ".partitions",
+                            SavedFolder = ".saved";
 
         public static void EnsureFoldersCreated()
         {

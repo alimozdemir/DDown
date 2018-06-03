@@ -9,15 +9,12 @@ namespace DDown.CLI
     class Program
     {
         static List<Indicator> indicators = new List<Indicator>();
-        private static CancellationTokenSource _cancelSource;
         private static bool _continued;
 
         async static Task Main(string[] args)
         {
             Console.Clear();
-            _cancelSource = new CancellationTokenSource();
-
-            var downloader = new Downloader("https://addons-origin.cursecdn.com/files/2477/989/Bagnon_7.3.2.zip", _cancelSource.Token);
+            var downloader = new Downloader("http://qc2.androidfilehost.com/dl/VPTMvX6eUAab7LpTFJvFEg/1527665057/24269982087012285/N910CQXXU2COJ5_5.1.1_TUR_Factory_Firmware_abdyasar.zip");
 
             Console.WriteLine("Preparing..!");
             var status = await downloader.PrepareAsync();
@@ -26,12 +23,6 @@ namespace DDown.CLI
             if (status.Continued)
                 Console.WriteLine($"Download is continued");
 
-            //downloader.SavePartitions();
-            /*for (int i = 0; i < status.PartitionCount; i++)
-            {
-                indicators.Add(new Indicator($"{i + 1}", 100));
-            }*/
-            //return;
             var progressIndicator = new Progress<(int, int)>(ReportProgress);
 
             Stopwatch sw = new Stopwatch();
@@ -45,14 +36,13 @@ namespace DDown.CLI
             await downloader.MergeAsync();
 
             Console.WriteLine("Download is finished!");
-
         }
 
         static async void ReportProgress((int index, int percent) data)
         {
             /*if (!_continued && data.percent > 80)
             {
-                _cancelSource.Cancel();
+                //_cancelSource.Cancel();
                 //await _downloader.PauseAsync();
             }*/
             Console.WriteLine($"Partition Index = {data.index}, Percentange  {data.percent}");

@@ -21,6 +21,9 @@ namespace DDown
         Options _options;
         Status _status;
         string _fileName, _fullPath;
+        bool _canceled = false;
+        public bool Completed => _options.Completed;
+        public IProgress<(int, int)> Progress { get; set; }
         public Downloader(string url)
                 : this(new Uri(url), _staticClient, _staticOptions)
         {
@@ -45,6 +48,7 @@ namespace DDown
         }
         #endregion
 
+
         public async Task MergeAsync()
         {
             if (_status.Partitions.Any(i => !i.IsFinished()))
@@ -54,29 +58,11 @@ namespace DDown
             await MergePartitionsAsync();
         }
 
-        public async Task PauseAsync()
+        public void Pause()
         {
+            _canceled = true;
             SavePartitions();
         }
-
-        public async Task ResumeAsync()
-        {
-
-        }
-
-        public async Task StopAsync()
-        {
-
-        }
-
-        #region Overload methods
-
-        public Task StartAsync()
-        {
-            return StartAsync(null);
-        }
-
-        #endregion
 
         #region Core methods
 
@@ -87,7 +73,7 @@ namespace DDown
                 response.EnsureSuccessStatusCode();
                 _status = EnsureContentIsDownloadable(response);
 
-                var saveModel = CheckForUncompleted();
+                var saveModel = ResumePartitions();
 
                 if (saveModel == null)
                 {
@@ -104,8 +90,10 @@ namespace DDown
             return _status;
         }
 
-        public async Task StartAsync(IProgress<(int, int)> progress)
+        public async Task StartAsync()
         {
+            _canceled = false;
+
             using (var response = await _client.GetAsync(_uri, HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
@@ -118,13 +106,13 @@ namespace DDown
                 List<Task> tasks = new List<Task>();
 
                 foreach (var item in _status.Partitions)
-                    tasks.Add(DownloadPartitionAsync(item, progress));
+                    tasks.Add(DownloadPartitionAsync(item));
 
                 Task.WaitAll(tasks.ToArray());
             }
         }
 
-        private async Task DownloadPartitionAsync(Partition partition, IProgress<(int, int)> progress)
+        private async Task DownloadPartitionAsync(Partition partition)
         {
             HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, _uri);
             message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
@@ -161,12 +149,12 @@ namespace DDown
                             {
                                 await file.WriteAsync(buffer, 0, count);
                                 partition.Write(count);
-                                progress?.Report((partition.Id, partition.Percent));
+                                Progress?.Report((partition.Id, partition.Percent));
                             }
                         }
 
                     }
-                    while (!partition.IsFinished());
+                    while (!partition.IsFinished() && !_canceled);
 
                 }
             }
@@ -190,6 +178,8 @@ namespace DDown
                     }
                 }
             }
+
+            _options.Completed = true;
         }
         #endregion
 
@@ -223,7 +213,6 @@ namespace DDown
         {
             if (_status == null)
                 throw new ArgumentException("EnsureContentIsDownloadable must be called before CalculatePartitions");
-            _options.ConnectionCount = 4;
 
             var median = _status.Length / _options.ConnectionCount;
             long start = 0, end = 0;
@@ -253,20 +242,20 @@ namespace DDown
 
         internal void SavePartitions()
         {
-            Console.WriteLine("SavePartitions");
-            Infrastructures.SaveModelFactory.SetDownload(this);
+            var result = LookingPartitionFile();
+            Infrastructures.SaveModelFactory.SetDownload(this, result.fileName);
         }
 
-        internal Save CheckForUncompleted()
+        internal Save ResumePartitions()
         {
-            var model = CheckForSaveModel();
+            var result = LookingPartitionFile();
 
-            if (model != null)
+            if (result.model != null)
             {
-                CalculatePartitionsRemain(model);
+                CalculatePartitionsRemain(result.model);
             }
 
-            return model;
+            return result.model;
         }
 
         internal void CalculatePartitionsRemain(Save model)
@@ -288,7 +277,7 @@ namespace DDown
 
 
 
-        internal Save CheckForSaveModel()
+        internal (String fileName, Save model) LookingPartitionFile()
         {
             var files = FileHelper.GetAllFilesInSavedFolder();
 
@@ -296,10 +285,13 @@ namespace DDown
             {
                 var model = SaveModelFactory.GetSaveModel(item);
                 if (model.Url.Equals(_uri.OriginalString))
-                    return model;
+                {
+                    FileInfo info = new FileInfo(item);
+                    return (info.Name, model);
+                }
             }
 
-            return null;
+            return (string.Empty, null);
         }
         #endregion
     }

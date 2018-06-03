@@ -5,10 +5,10 @@ namespace DDown
     public class Options
     {
         /// <summary>
-        /// Default as 1
+        /// Default as Processor Count
         /// </summary>
         /// <returns></returns>
-        public int ConnectionCount { get; set; } = 1;
+        public int ConnectionCount { get; set; } = Environment.ProcessorCount;
         /// <summary>
         /// Default: Current Path of Process (Environment.CurrentDirectory)
         /// </summary>
@@ -16,5 +16,6 @@ namespace DDown
         public string OutputFolder { get; set; } = Environment.CurrentDirectory;
         public string Name { get; set; } = default(string);
         public bool Override { get; set; } = true;
+        public bool Completed { get; set; }
     }
 }

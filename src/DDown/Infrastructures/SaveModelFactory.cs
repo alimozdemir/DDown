@@ -12,12 +12,12 @@ namespace DDown.Infrastructures
             
         }
         
-        public static void SetDownload(Downloader download)
+        public static void SetDownload(Downloader download, string fileName = "")
         {
-            var id = Guid.NewGuid();
+            var id = string.IsNullOrEmpty(fileName) ? Guid.NewGuid().ToString() : fileName;
             var saveModel = new Save();
 
-            saveModel.Id = id.ToString();
+            saveModel.Id = id;
             saveModel.Partitions = download.GetPartitions();
             saveModel.Url = download.GetUrl();
 

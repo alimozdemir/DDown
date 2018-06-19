@@ -167,7 +167,7 @@ namespace DDown
                                 await file.WriteAsync(buffer, 0, count);
                                 partition.Write(count);
 
-                                if (this.Progress != null)
+                                if (this.Progress != null && partition.IsPercentChanged) //
                                 {
                                     this.Progress(new Report()
                                     {
@@ -182,7 +182,7 @@ namespace DDown
 
                     }
                     while (!partition.IsFinished() && !_canceled);
-                    Console.WriteLine("Partition done {0}.", _canceled);
+                    Console.WriteLine("Partition done {0} {1}.", _canceled, partition.IsFinished());
                 }
             }
 
@@ -207,7 +207,7 @@ namespace DDown
             }
 
             var saved = LookingPartitionFile();
-
+            
             if (saved.model != null)
             {
                 SaveModelFactory.RemoveSaveModel(saved.fileName);

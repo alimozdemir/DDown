@@ -28,16 +28,15 @@ namespace DDown.CLI
             {
                 Console.WriteLine("process exit");
             };
-            
+
             Console.CancelKeyPress += Exit;
-            //AppDomain.CurrentDomain.ProcessExit += Exit;
 
             //string link = "https://github.com/OpenShot/openshot-qt/releases/download/v2.4.1/OpenShot-v2.4.1-x86_64.dmg";
             //string link = "http://www.itu.edu.tr/docs/default-source/KurumsalKimlik-2017/itu-sunum.rar?sfvrsn=2";
             var link = "https://media.forgecdn.net/files/2573/89/DBM-Core-7.3.31.zip";
             Console.Clear();
             downloader = new Downloader(link);
-            downloader.Progress += ReportProgress;
+            downloader.Progress += ReportProgress2;
 
 
             Console.WriteLine("Preparing..!");
@@ -46,8 +45,6 @@ namespace DDown.CLI
 
             if (status.Continued)
                 Console.WriteLine($"Download is continued");
-
-
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -58,37 +55,17 @@ namespace DDown.CLI
                 Console.WriteLine("Merging..");
                 await downloader.MergeAsync();
 
-                sw.Stop();
-
-                Console.WriteLine("Ended " + sw.ElapsedMilliseconds);
-
-                Console.WriteLine("Download is finished!");
             }
 
+            sw.Stop();
+
+            Console.WriteLine("Ended " + sw.ElapsedMilliseconds);
+            Console.WriteLine("Download is finished!");
         }
 
-
-        static ConcurrentDictionary<int, int> Parts = new ConcurrentDictionary<int, int>();
-        static void ReportProgress(Report data)
+        static void ReportProgress2(Report data)
         {
-            /*if (!_continued && data.percent > 80)
-            {
-                //_cancelSource.Cancel();
-                //await _downloader.PauseAsync();
-            }*/
-            if (Parts.ContainsKey(data.PartitionId))
-            {
-                if (Parts[data.PartitionId] != data.Percent)
-                {
-                    Console.WriteLine($"Partition Index = {data.PartitionId}, Percentange  {data.Percent}");
-                }
-            }
-            else
-            {
-                Parts.TryAdd(data.PartitionId, data.Percent);
-                Console.WriteLine($"Partition Index = {data.PartitionId}, Percentange  {data.Percent}");
-            }
-
+            Console.WriteLine($"PartitionId = {data.PartitionId}, Percent={data.Percent}, Current={data.Current}, Length={data.Length}");
         }
     }
 }

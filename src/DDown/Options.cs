@@ -8,7 +8,7 @@ namespace DDown
         /// Default as Processor Count
         /// </summary>
         /// <returns></returns>
-        public int ConnectionCount { get; set; } = Environment.ProcessorCount;
+        public int PartitionCount { get; set; } = Environment.ProcessorCount;
         /// <summary>
         /// Default: Current Path of Process (Environment.CurrentDirectory)
         /// </summary>

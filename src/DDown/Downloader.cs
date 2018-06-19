@@ -249,12 +249,12 @@ namespace DDown
             if (_status == null)
                 throw new ArgumentException("EnsureContentIsDownloadable must be called before CalculatePartitions");
 
-            var median = _status.Length / _options.ConnectionCount;
+            var median = _status.Length / _options.PartitionCount;
             long start = 0, end = 0;
-            for (int i = 0; i < _options.ConnectionCount; i++)
+            for (int i = 0; i < _options.PartitionCount; i++)
             {
                 // This is a quick fix, remain part could be lost, if iteratively sum up to end
-                if (_options.ConnectionCount - 1 == i)
+                if (_options.PartitionCount - 1 == i)
                     end = _status.Length - 1;
                 else if (start + median >= _status.Length)
                     end = _status.Length;

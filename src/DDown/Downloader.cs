@@ -22,7 +22,8 @@ namespace DDown
         Status _status;
         string _fileName, _fullPath;
         volatile bool _canceled = false;
-        public bool Completed => _options.Completed;
+        bool _completed = false;
+        public bool Completed => _completed;
         public bool Canceled => _canceled;
         public long Length => _status.Length;
 
@@ -213,7 +214,7 @@ namespace DDown
                 SaveModelFactory.RemoveSaveModel(saved.fileName);
             }
 
-            _options.Completed = true;
+            _completed = true;
         }
         #endregion
 

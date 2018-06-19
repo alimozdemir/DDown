@@ -16,6 +16,5 @@ namespace DDown
         public string OutputFolder { get; set; } = Environment.CurrentDirectory;
         public string Name { get; set; } = default(string);
         public bool Override { get; set; } = true;
-        public bool Completed { get; set; }
     }
 }

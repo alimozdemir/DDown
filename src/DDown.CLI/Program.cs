@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.Loader;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,21 +16,25 @@ namespace DDown.CLI
 
         public static void Exit(object sender, ConsoleCancelEventArgs ev)
         {
+            downloader.Pause();
             Console.WriteLine("Exiting.. {0} {1}", ev, sender);
-            
-            if (downloader != null && !downloader.Completed)
-            {
-                downloader.Pause();
-            }
-            ev.Cancel = false;
+
+            ev.Cancel = true;
         }
 
         async static Task Main(string[] args)
         {
+            AppDomain.CurrentDomain.ProcessExit += (s, ev) =>
+            {
+                Console.WriteLine("process exit");
+            };
+
             Console.CancelKeyPress += Exit;
             //AppDomain.CurrentDomain.ProcessExit += Exit;
-            string link = "https://github.com/OpenShot/openshot-qt/releases/download/v2.4.1/OpenShot-v2.4.1-x86_64.dmg";
+
+            //string link = "https://github.com/OpenShot/openshot-qt/releases/download/v2.4.1/OpenShot-v2.4.1-x86_64.dmg";
             //string link = "http://www.itu.edu.tr/docs/default-source/KurumsalKimlik-2017/itu-sunum.rar?sfvrsn=2";
+            var link = "https://media.forgecdn.net/files/2573/89/DBM-Core-7.3.31.zip";
             Console.Clear();
             downloader = new Downloader(link);
 
@@ -46,15 +51,22 @@ namespace DDown.CLI
             Stopwatch sw = new Stopwatch();
             sw.Start();
             await downloader.StartAsync();
-            sw.Stop();
 
-            Console.WriteLine("Ended " + sw.ElapsedMilliseconds);
+            if (!downloader.Canceled)
+            {
+                Console.WriteLine("Merging..");
+                await downloader.MergeAsync();
 
-            Console.WriteLine("Merging..");
-            await downloader.MergeAsync();
+                sw.Stop();
 
-            Console.WriteLine("Download is finished!");
+                Console.WriteLine("Ended " + sw.ElapsedMilliseconds);
+
+                Console.WriteLine("Download is finished!");
+            }
+
         }
+
+
         static ConcurrentDictionary<int, int> Parts = new ConcurrentDictionary<int, int>();
         static void ReportProgress((int index, int percent) data)
         {

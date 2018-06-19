@@ -27,7 +27,7 @@ namespace DDown.Internal
         }
         public static string[] GetAllFilesInSavedFolder()
         {
-            return Directory.GetFiles(SavedFolder);
+            return Directory.GetFiles(SavedFolder, "*.json");
         }
         public static string GetFileName(string url)
         {

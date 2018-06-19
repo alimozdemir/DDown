@@ -21,8 +21,10 @@ namespace DDown
         Options _options;
         Status _status;
         string _fileName, _fullPath;
-        bool _canceled = false;
+        volatile bool _canceled = false;
         public bool Completed => _options.Completed;
+        public bool Canceled => _canceled;
+        public long Length => _status.Length;
         public IProgress<(int, int)> Progress { get; set; }
         public Downloader(string url)
                 : this(new Uri(url), _staticClient, _staticOptions)
@@ -61,7 +63,7 @@ namespace DDown
         public void Pause()
         {
             _canceled = true;
-            SavePartitions();
+            //SavePartitions();
         }
 
         #region Core methods
@@ -83,7 +85,14 @@ namespace DDown
                         File.Delete(_fullPath);
                 }
                 else
+                {
                     _status.Continued = true;
+                    _status.Partitions = saveModel.Partitions;
+                    _status.Length = saveModel.Length;
+                    _status.IsRangeSupported = saveModel.IsRangeSupported;
+                    Console.WriteLine(_status.Partitions[0].Path + " path");
+                }
+
 
             }
 
@@ -109,6 +118,11 @@ namespace DDown
                     tasks.Add(DownloadPartitionAsync(item));
 
                 Task.WaitAll(tasks.ToArray());
+
+                if (_canceled)
+                {
+                    SavePartitions();
+                }
             }
         }
 
@@ -123,10 +137,15 @@ namespace DDown
             {
                 response.EnsureSuccessStatusCode();
 
-                using (var file = new FileStream(partition.Path, FileMode.Create, FileAccess.Write))
+                using (var file = new FileStream(partition.Path, FileMode.OpenOrCreate, FileAccess.Write))
                 using (Stream read = await response.Content.ReadAsStreamAsync())
                 {
                     var buffer = new byte[8192];
+
+                    // if it is continued download, seek to end.
+                    if (_status.Continued)
+                        file.Seek(0, SeekOrigin.End);
+                    //file.Seek(partition.Current, SeekOrigin.Begin);
 
                     do
                     {
@@ -155,7 +174,7 @@ namespace DDown
 
                     }
                     while (!partition.IsFinished() && !_canceled);
-
+                    Console.WriteLine("Partition done {0}.", _canceled);
                 }
             }
 
@@ -284,10 +303,11 @@ namespace DDown
             foreach (var item in files)
             {
                 var model = SaveModelFactory.GetSaveModel(item);
+
                 if (model.Url.Equals(_uri.OriginalString))
                 {
                     FileInfo info = new FileInfo(item);
-                    return (info.Name, model);
+                    return (Path.GetFileNameWithoutExtension(info.Name), model);
                 }
             }
 

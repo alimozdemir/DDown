@@ -25,7 +25,10 @@ namespace DDown
         public bool Completed => _options.Completed;
         public bool Canceled => _canceled;
         public long Length => _status.Length;
-        public IProgress<(int, int)> Progress { get; set; }
+
+        public delegate void ProgressHandler(Report report);
+        public event ProgressHandler Progress;
+
         public Downloader(string url)
                 : this(new Uri(url), _staticClient, _staticOptions)
         {
@@ -163,7 +166,17 @@ namespace DDown
                             {
                                 await file.WriteAsync(buffer, 0, count);
                                 partition.Write(count);
-                                Progress?.Report((partition.Id, partition.Percent));
+
+                                if (this.Progress != null)
+                                {
+                                    this.Progress(new Report()
+                                    {
+                                        PartitionId = partition.Id,
+                                        Percent = partition.Percent,
+                                        Length = partition.Length,
+                                        Current = partition.Current
+                                    });
+                                }
                             }
                         }
 

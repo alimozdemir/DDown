@@ -28,7 +28,7 @@ namespace DDown.CLI
             {
                 Console.WriteLine("process exit");
             };
-
+            
             Console.CancelKeyPress += Exit;
             //AppDomain.CurrentDomain.ProcessExit += Exit;
 
@@ -37,6 +37,8 @@ namespace DDown.CLI
             var link = "https://media.forgecdn.net/files/2573/89/DBM-Core-7.3.31.zip";
             Console.Clear();
             downloader = new Downloader(link);
+            downloader.Progress += ReportProgress;
+
 
             Console.WriteLine("Preparing..!");
             var status = await downloader.PrepareAsync();
@@ -45,8 +47,7 @@ namespace DDown.CLI
             if (status.Continued)
                 Console.WriteLine($"Download is continued");
 
-            var progressIndicator = new Progress<(int, int)>(ReportProgress);
-            downloader.Progress = progressIndicator;
+
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -68,24 +69,24 @@ namespace DDown.CLI
 
 
         static ConcurrentDictionary<int, int> Parts = new ConcurrentDictionary<int, int>();
-        static void ReportProgress((int index, int percent) data)
+        static void ReportProgress(Report data)
         {
             /*if (!_continued && data.percent > 80)
             {
                 //_cancelSource.Cancel();
                 //await _downloader.PauseAsync();
             }*/
-            if (Parts.ContainsKey(data.index))
+            if (Parts.ContainsKey(data.PartitionId))
             {
-                if (Parts[data.index] != data.percent)
+                if (Parts[data.PartitionId] != data.Percent)
                 {
-                    Console.WriteLine($"Partition Index = {data.index}, Percentange  {data.percent}");
+                    Console.WriteLine($"Partition Index = {data.PartitionId}, Percentange  {data.Percent}");
                 }
             }
             else
             {
-                Parts.TryAdd(data.index, data.percent);
-                Console.WriteLine($"Partition Index = {data.index}, Percentange  {data.percent}");
+                Parts.TryAdd(data.PartitionId, data.Percent);
+                Console.WriteLine($"Partition Index = {data.PartitionId}, Percentange  {data.Percent}");
             }
 
         }

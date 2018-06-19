@@ -23,7 +23,7 @@ namespace DDown.Internal
         public long Length { get; set; }
         public long Current
         {
-            get => _current; 
+            get => _current;
             set
             {
                 _current = value;

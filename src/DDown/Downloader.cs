@@ -90,7 +90,8 @@ namespace DDown
                     _status.Partitions = saveModel.Partitions;
                     _status.Length = saveModel.Length;
                     _status.IsRangeSupported = saveModel.IsRangeSupported;
-                    Console.WriteLine(_status.Partitions[0].Path + " path");
+                    _status.Partitions.ForEach(i => i.Start = i.Start + i.Current);
+                    Console.WriteLine(_status.Partitions[0].Start + " path");
                 }
 
 
@@ -128,6 +129,9 @@ namespace DDown
 
         private async Task DownloadPartitionAsync(Partition partition)
         {
+            if (partition.Current == partition.Length)
+                return;
+
             HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, _uri);
             message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
             message.Headers.Range.Unit = "bytes";

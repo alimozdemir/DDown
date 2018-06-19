@@ -9,9 +9,9 @@ namespace DDown.Infrastructures
     {
         public SaveModelFactory()
         {
-            
+
         }
-        
+
         public static void SetDownload(Downloader download, string fileName = "")
         {
             var id = string.IsNullOrEmpty(fileName) ? Guid.NewGuid().ToString() : fileName;
@@ -29,6 +29,13 @@ namespace DDown.Infrastructures
         {
             var text = File.ReadAllText(path);
             return JsonConvert.DeserializeObject<Save>(text);
+        }
+
+        public static bool RemoveSaveModel(string fileName)
+        {
+            var path = FileHelper.GetSavePath(fileName + ".json");
+            File.Delete(path);
+            return !File.Exists(path);
         }
     }
 }

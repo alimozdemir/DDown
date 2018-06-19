@@ -84,15 +84,6 @@ namespace DDown
                     if (_options.Override)
                         File.Delete(_fullPath);
                 }
-                else
-                {
-                    _status.Continued = true;
-                    _status.Partitions = saveModel.Partitions;
-                    _status.Length = saveModel.Length;
-                    _status.IsRangeSupported = saveModel.IsRangeSupported;
-                    _status.Partitions.ForEach(i => i.Start = i.Start + i.Current);
-                    Console.WriteLine(_status.Partitions[0].Start + " path");
-                }
 
 
             }
@@ -202,6 +193,13 @@ namespace DDown
                 }
             }
 
+            var saved = LookingPartitionFile();
+
+            if (saved.model != null)
+            {
+                SaveModelFactory.RemoveSaveModel(saved.fileName);
+            }
+
             _options.Completed = true;
         }
         #endregion
@@ -286,13 +284,13 @@ namespace DDown
             if (_status == null)
                 throw new ArgumentException("EnsureContentIsDownloadable must be called before CalculatePartitions");
 
-            /*_status = new Status()
-            {
-                Length = model.Length,
-                IsRangeSupported = model.IsRangeSupported
-            };*/
-
+            _status.Continued = true;
             _status.Partitions = model.Partitions;
+            _status.Length = model.Length;
+            _status.IsRangeSupported = model.IsRangeSupported;
+            _status.Partitions.ForEach(i => i.Start = i.Start + i.Current);
+
+            //TODO: ensure json file is not changed and match with source.
 
             /*if(_partitions.Sum(i => i.Length) != _status.Length)
                 throw new Exception("Not equal part of sizes");*/

@@ -46,6 +46,12 @@ namespace DDown
             _options = options;
             _uri = uri;
 
+            if (_options.BufferSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(_options.BufferSize));
+
+            if (_options.PartitionCount <= 0)
+                throw new ArgumentOutOfRangeException(nameof(_options.PartitionCount));
+
             _fileName = FileHelper.GetFileName(_uri);
             _fullPath = Path.Combine(_options.OutputFolder, _fileName);
 
@@ -111,11 +117,26 @@ namespace DDown
                 List<Task> tasks = new List<Task>();
 
                 foreach (var item in _status.Partitions)
+                {
+                    if (item.Current == item.Length)
+                        continue;
+
                     tasks.Add(DownloadPartitionAsync(item));
+                }
 
-                Task.WaitAll(tasks.ToArray());
+                bool exception = false;
 
-                if (_canceled)
+                try
+                {
+                    Task.WaitAll(tasks.ToArray());
+                }
+                catch (Exception ex)
+                {
+                    exception = true;
+                    Console.WriteLine(ex);
+                }
+
+                if (_canceled || exception)
                 {
                     SavePartitions();
                 }
@@ -135,11 +156,11 @@ namespace DDown
             using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
-
+                // System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable
                 using (var file = new FileStream(partition.Path, FileMode.OpenOrCreate, FileAccess.Write))
                 using (Stream read = await response.Content.ReadAsStreamAsync())
                 {
-                    var buffer = new byte[8192];
+                    var buffer = new byte[_options.BufferSize];
 
                     // if it is continued download, seek to end.
                     if (_status.Continued)
@@ -157,35 +178,47 @@ namespace DDown
 
                         if (requestSize > 0)
                         {
-                            var count = await read.ReadAsync(buffer, 0, requestSize);
+                            var readRequest = read.ReadAsync(buffer, 0, requestSize);
+                            var timeout = Task.Delay(10000);
 
-                            if (count == 0)
+                            Task.WaitAny(readRequest, timeout);
+
+                            if (timeout.IsCompleted)
                             {
-                                throw new Exception("There exist a problem with source.");
+                                _canceled = true;
+                                Console.WriteLine("Connection Loss");
                             }
                             else
                             {
-                                await file.WriteAsync(buffer, 0, count);
-                                partition.Write(count);
-
-                                if (this.Progress != null && partition.IsPercentChanged) //
+                                var count = await readRequest;
+                                if (count == 0)
                                 {
-                                    this.Progress(new Report()
+                                    throw new Exception("There exist a problem with source.");
+                                }
+                                else
+                                {
+                                    await file.WriteAsync(buffer, 0, count);
+                                    partition.Write(count);
+
+                                    if (this.Progress != null && partition.IsPercentChanged) //
                                     {
-                                        PartitionId = partition.Id,
-                                        Percent = partition.Percent,
-                                        Length = partition.Length,
-                                        Current = partition.Current
-                                    });
+                                        this.Progress(new Report()
+                                        {
+                                            PartitionId = partition.Id,
+                                            Percent = partition.Percent,
+                                            Length = partition.Length,
+                                            Current = partition.Current
+                                        });
+                                    }
                                 }
                             }
                         }
 
                     }
                     while (!partition.IsFinished() && !_canceled);
-                    Console.WriteLine("Partition done {0} {1}.", _canceled, partition.IsFinished());
                 }
             }
+
 
         }
 
@@ -208,7 +241,7 @@ namespace DDown
             }
 
             var saved = LookingPartitionFile();
-            
+
             if (saved.model != null)
             {
                 SaveModelFactory.RemoveSaveModel(saved.fileName);

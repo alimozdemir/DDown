@@ -21,10 +21,12 @@ namespace DDown
         Options _options;
         Status _status;
         string _fileName, _fullPath;
-        volatile bool _canceled = false;
+        volatile bool _canceled = false, _connectionLost = false, _sourceException = false;
         bool _completed = false;
         public bool Completed => _completed;
         public bool Canceled => _canceled;
+        public bool ConnectionLost => _connectionLost;
+        public bool SourceException => _sourceException;
         public long Length => _status.Length;
 
         public delegate void ProgressHandler(Report report);
@@ -124,19 +126,9 @@ namespace DDown
                     tasks.Add(DownloadPartitionAsync(item));
                 }
 
-                bool exception = false;
+                Task.WaitAll(tasks.ToArray());
 
-                try
-                {
-                    Task.WaitAll(tasks.ToArray());
-                }
-                catch (Exception ex)
-                {
-                    exception = true;
-                    Console.WriteLine(ex);
-                }
-
-                if (_canceled || exception)
+                if (_canceled)
                 {
                     SavePartitions();
                 }
@@ -165,7 +157,6 @@ namespace DDown
                     // if it is continued download, seek to end.
                     if (_status.Continued)
                         file.Seek(0, SeekOrigin.End);
-                    //file.Seek(partition.Current, SeekOrigin.Begin);
 
                     do
                     {
@@ -178,38 +169,35 @@ namespace DDown
 
                         if (requestSize > 0)
                         {
+                            // prepare tasks
                             var readRequest = read.ReadAsync(buffer, 0, requestSize);
-                            var timeout = Task.Delay(10000);
+                            var timeout = Task.Delay(_options.Timeout);
 
+                            // wait for a task to complete
                             Task.WaitAny(readRequest, timeout);
-
+                            
+                            // if readRequest is not completed then timeout will be.
                             if (timeout.IsCompleted)
                             {
+                                // cancel the all processes
                                 _canceled = true;
-                                Console.WriteLine("Connection Loss");
+                                _connectionLost = true;
                             }
                             else
                             {
+                                // get the result of the already completed task for reading
                                 var count = await readRequest;
-                                if (count == 0)
+
+                                if (count == 0) // 0 bytes means; something is not right
                                 {
-                                    throw new Exception("There exist a problem with source.");
+                                    _canceled = true;
+                                    _sourceException = true;
                                 }
                                 else
                                 {
                                     await file.WriteAsync(buffer, 0, count);
                                     partition.Write(count);
-
-                                    if (this.Progress != null && partition.IsPercentChanged) //
-                                    {
-                                        this.Progress(new Report()
-                                        {
-                                            PartitionId = partition.Id,
-                                            Percent = partition.Percent,
-                                            Length = partition.Length,
-                                            Current = partition.Current
-                                        });
-                                    }
+                                    partition.Notify(this.Progress);
                                 }
                             }
                         }

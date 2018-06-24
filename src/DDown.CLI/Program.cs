@@ -50,6 +50,16 @@ namespace DDown.CLI
             sw.Start();
             await downloader.StartAsync();
 
+            if (downloader.ConnectionLost)
+            {
+                Console.WriteLine("Connection is lost.");
+            }
+
+            if (downloader.SourceException)
+            {
+                Console.WriteLine("There exist a problem with source.");
+            }
+
             if (!downloader.Canceled)
             {
                 Console.WriteLine("Merging..");

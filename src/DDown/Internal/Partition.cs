@@ -46,6 +46,19 @@ namespace DDown.Internal
             _isPercentChanged = newPercent != _percent;
             _percent = newPercent;
         }
+        public void Notify(Downloader.ProgressHandler progress)
+        {
+            if (progress != null && this.IsPercentChanged) //
+            {
+                progress(new Report()
+                {
+                    PartitionId = this.Id,
+                    Percent = this.Percent,
+                    Length = this.Length,
+                    Current = this.Current
+                });
+            }
+        }
         public bool IsFinished() => Length == Current;
         public RangeItemHeaderValue GetHeader() => new RangeItemHeaderValue(Start, End);
         public string Path { get; set; }

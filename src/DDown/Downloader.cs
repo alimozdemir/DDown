@@ -28,6 +28,7 @@ namespace DDown
         public bool ConnectionLost => _connectionLost;
         public bool SourceException => _sourceException;
         public long Length => _status.Length;
+        public int PartitionCount => _options.PartitionCount;
 
         public delegate void ProgressHandler(Report report);
         public event ProgressHandler Progress;
@@ -170,7 +171,7 @@ namespace DDown
                         if (requestSize > 0)
                         {
                             // prepare tasks
-                            var readRequest = read.ReadAsync(buffer, 0, requestSize);
+                            var readRequest = read.ReadAsync(buffer, 0, requestSize); // task cancel
                             var timeout = Task.Delay(_options.Timeout);
 
                             // wait for a task to complete
@@ -180,6 +181,7 @@ namespace DDown
                             if (timeout.IsCompleted)
                             {
                                 // cancel the all processes
+                                
                                 _canceled = true;
                                 _connectionLost = true;
                             }

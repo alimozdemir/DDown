@@ -20,7 +20,7 @@ namespace DDown
         Uri _uri;
         Options _options;
         Status _status;
-        string _fileName, _fullPath;
+        string _fileName, _fullPath, _originalName;
         volatile bool _canceled = false, _connectionLost = false, _sourceException = false;
         bool _completed = false;
         public bool Completed => _completed;
@@ -54,10 +54,10 @@ namespace DDown
 
             if (_options.PartitionCount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(_options.PartitionCount));
-
+            
             _fileName = FileHelper.GetFileName(_uri);
             _fullPath = Path.Combine(_options.OutputFolder, _fileName);
-
+            _originalName = Path.GetFileNameWithoutExtension(_fileName);
             //Ensure the necessary folders are created
             FileHelper.EnsureFoldersCreated();
         }
@@ -79,6 +79,18 @@ namespace DDown
             //SavePartitions();
         }
 
+        public void Delete()
+        {
+            if (_status.OK)
+            {
+                DeleteAll();
+            }
+            else
+            {
+                throw new Exception("You have to call PrepareAsync method or something is wrong (e.g. PartitionCount, Length of the file)");
+            }
+        }
+
         #region Core methods
 
         public async Task<Status> PrepareAsync()
@@ -93,12 +105,7 @@ namespace DDown
                 if (saveModel == null)
                 {
                     CalculatePartitions();
-
-                    if (_options.Override)
-                        File.Delete(_fullPath);
                 }
-
-
             }
 
             return _status;
@@ -176,12 +183,12 @@ namespace DDown
 
                             // wait for a task to complete
                             Task.WaitAny(readRequest, timeout);
-                            
+
                             // if readRequest is not completed then timeout will be.
                             if (timeout.IsCompleted)
                             {
                                 // cancel the all processes
-                                
+
                                 _canceled = true;
                                 _connectionLost = true;
                             }
@@ -214,6 +221,14 @@ namespace DDown
 
         protected async Task MergePartitionsAsync()
         {
+            if (_options.Override)
+            {
+                if (File.Exists(_fullPath))
+                    File.Delete(_fullPath);
+            }
+
+            _fullPath = PrepareFileName();
+
             using (var file = new FileStream(_fullPath, FileMode.Create, FileAccess.Write))
             {
                 foreach (var p in _status.Partitions)
@@ -316,6 +331,27 @@ namespace DDown
             return result.model;
         }
 
+        internal void DeleteAll()
+        {
+            if (_status.Continued)
+            {
+                foreach (var item in _status.Partitions)
+                {
+                    if (File.Exists(item.Path))
+                        File.Delete(item.Path);
+                }
+            }
+
+            // remove Json file.
+            var saved = LookingPartitionFile();
+
+            if (saved.model != null)
+            {
+                SaveModelFactory.RemoveSaveModel(saved.fileName);
+            }
+
+        }
+
         internal void CalculatePartitionsRemain(Save model)
         {
             if (_status == null)
@@ -351,6 +387,24 @@ namespace DDown
             }
 
             return (string.Empty, null);
+        }
+
+        internal string PrepareFileName()
+        {
+            string fullPath = _fullPath;
+
+            var name = _originalName;
+            var extension = Path.GetExtension(_fileName);
+            int counter = 0;
+            
+            while (File.Exists(fullPath))
+            {
+                counter++;
+                name = $"{_originalName} ({counter})";
+                fullPath = Path.Combine(_options.OutputFolder, name + extension);
+            }
+
+            return fullPath;
         }
         #endregion
     }

@@ -29,9 +29,9 @@ namespace DDown.CLI
         {
             Console.CancelKeyPress += Exit;
 
-            string link = "https://github.com/OpenShot/openshot-qt/releases/download/v2.4.1/OpenShot-v2.4.1-x86_64.dmg";
+            //string link = "https://github.com/OpenShot/openshot-qt/releases/download/v2.4.1/OpenShot-v2.4.1-x86_64.dmg";
             //string link = "http://www.itu.edu.tr/docs/default-source/KurumsalKimlik-2017/itu-sunum.rar?sfvrsn=2";
-            //var link = "https://media.forgecdn.net/files/2573/89/DBM-Core-7.3.31.zip";
+            var link = "https://media.forgecdn.net/files/2573/89/DBM-Core-7.3.31.zip";
             Console.Clear();
             //downloader = new Downloader(new Uri(link), new System.Net.Http.HttpClient(), new Options() { PartitionCount = 16 });
             

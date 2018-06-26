@@ -36,6 +36,7 @@ namespace DDown
         /// Total partition count
         /// </summary>
         public int PartitionCount => Partitions.Count;
+        public bool OK => Length > 0 && PartitionCount > 0;
 
         public override string ToString()
         {

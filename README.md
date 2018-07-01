@@ -7,7 +7,7 @@ DDown is a dotnet downloader API.
 * Stop the download with `Pause` method.
 * Paused download can be resume with `StartAsync` method.
 
-## Basic
+## Example
 
 ```csharp
 using DDown;
@@ -24,3 +24,9 @@ if (!downloader.Canceled)
 }
 
 ```
+
+
+```csharp
+```
+
+

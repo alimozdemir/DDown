@@ -4,10 +4,12 @@
     <ProjectReference Include="..\DDown\DDown.csproj" />
   </ItemGroup>
 
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
+    <RuntimeIdentifiers>win10-x64;osx-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
 </Project>

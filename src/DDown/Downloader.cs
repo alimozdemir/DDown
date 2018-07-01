@@ -32,6 +32,8 @@ namespace DDown
 
         public delegate void ProgressHandler(Report report);
         public event ProgressHandler Progress;
+        public string FileName => _fileName;
+        public string Url => _uri.ToString();
 
         public Downloader(string url)
                 : this(new Uri(url), _staticClient, _staticOptions)
@@ -76,7 +78,6 @@ namespace DDown
         public void Pause()
         {
             _canceled = true;
-            //SavePartitions();
         }
 
         public void Delete()

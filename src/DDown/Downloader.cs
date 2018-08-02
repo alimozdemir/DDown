@@ -51,12 +51,18 @@ namespace DDown
             _options = options;
             _uri = uri;
 
+            /*
+            if (!_client.DefaultRequestHeaders.Contains("User-Agent"))
+            {
+                _client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36");
+            }
+            */
             if (_options.BufferSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(_options.BufferSize));
 
             if (_options.PartitionCount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(_options.PartitionCount));
-            
+
             _fileName = FileHelper.GetFileName(_uri);
             _fullPath = Path.Combine(_options.OutputFolder, _fileName);
             _originalName = Path.GetFileNameWithoutExtension(_fileName);
@@ -120,11 +126,6 @@ namespace DDown
             {
                 response.EnsureSuccessStatusCode();
 
-                /*Parallel.ForEach(_partitions, async (p) =>
-                {
-                    await DownloadPartitionAsync(p);
-                });*/
-
                 List<Task> tasks = new List<Task>();
 
                 foreach (var item in _status.Partitions)
@@ -150,11 +151,15 @@ namespace DDown
                 return;
 
             HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, _uri);
-            message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
-            message.Headers.Range.Unit = "bytes";
-            message.Headers.Range.Ranges.Add(partition.GetHeader());
 
-            using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead))
+            if (_status.IsRangeSupported)
+            {
+                message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
+                message.Headers.Range.Unit = "bytes";
+                message.Headers.Range.Ranges.Add(partition.GetHeader());
+            }
+
+            using (var response = await _client.SendAsync(message))
             {
                 response.EnsureSuccessStatusCode();
                 // System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable
@@ -288,6 +293,9 @@ namespace DDown
             if (_status == null)
                 throw new ArgumentException("EnsureContentIsDownloadable must be called before CalculatePartitions");
 
+            if (!_status.IsRangeSupported) // if range is not supported then it shouldn't divide the file into partitions
+                _options.PartitionCount = 1;
+
             var median = _status.Length / _options.PartitionCount;
             long start = 0, end = 0;
             for (int i = 0; i < _options.PartitionCount; i++)
@@ -397,7 +405,7 @@ namespace DDown
             var name = _originalName;
             var extension = Path.GetExtension(_fileName);
             int counter = 0;
-            
+
             while (File.Exists(fullPath))
             {
                 counter++;

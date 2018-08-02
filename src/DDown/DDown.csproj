@@ -7,6 +7,19 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
+    <Version>1.0.0</Version>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Company>lyzerk</Company>
+    <Authors>Alim Özdemir</Authors>
+    <Copyright>Copyright © 2017-2018 Alim Özdemir</Copyright>
+    <PackageProjectUrl>https://github.com/lyzerk/DDown</PackageProjectUrl>
+    <PackageLicenseUrl>https://raw.githubusercontent.com/lyzerk/DDown/master/LICENSE</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/lyzerk/DDown</RepositoryUrl>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Description>A downloader API for .net standard. It has partition downloading with stop/start features.</Description>
+    <PackageTags>downloader, httpclient, range</PackageTags>
+
   </PropertyGroup>
 
 </Project>

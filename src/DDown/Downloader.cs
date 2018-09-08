@@ -51,12 +51,6 @@ namespace DDown
             _options = options;
             _uri = uri;
 
-            /*
-            if (!_client.DefaultRequestHeaders.Contains("User-Agent"))
-            {
-                _client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36");
-            }
-            */
             if (_options.BufferSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(_options.BufferSize));
 
@@ -75,7 +69,7 @@ namespace DDown
         public async Task MergeAsync()
         {
             if (_status.Partitions.Any(i => !i.IsFinished()))
-                throw new Exception("Something went wrong, some of the partitions does not completed. Also, you can't merge the paused or stopped downloads");
+                throw new Exception("Something went wrong, some of the partitions does not completed. Also, you can't merge the paused or stopped downloads.");
 
             //merge all
             await MergePartitionsAsync();

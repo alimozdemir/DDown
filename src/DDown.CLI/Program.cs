@@ -15,7 +15,10 @@ namespace DDown.CLI
 
         public static void Exit(object sender, ConsoleCancelEventArgs ev)
         {
-            downloader.Pause();
+            if (downloader != null)
+            {
+                downloader.Pause();
+            }
 
             ev.Cancel = true;
         }
@@ -43,7 +46,7 @@ namespace DDown.CLI
             TimeLog.WriteLine("Preparing");
             var status = await downloader.PrepareAsync();
 
-            TimeLog.WriteLine($"Source {downloader.Url}");
+            TimeLog.WriteLine($"Source {downloader.Url}, {(status.IsRangeSupported ? "Range is supported" : "Range is not supported") }");
             TimeLog.WriteLine($"File Name {downloader.FileName}, Size {downloader.Length.AsReadable()}");
             _continued = status.Continued;
 

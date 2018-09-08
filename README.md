@@ -4,8 +4,9 @@ DDown is a dotnet downloader API.
 ## Features
 
 * Download by partitions
-* Stop the download with `Pause` method.
-* Paused download can be resume with `StartAsync` method.
+* Pause/Resume/Cancel downloads
+
+You can stop the download with `Pause` method and paused/stoped downloads can be resume with `StartAsync` method.
 
 ## Example
 
@@ -24,9 +25,3 @@ if (!downloader.Canceled)
 }
 
 ```
-
-
-```csharp
-```
-
-

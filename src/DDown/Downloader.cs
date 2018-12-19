@@ -45,6 +45,17 @@ namespace DDown
         {
         }
 
+        public Downloader(string url, Options options) 
+                : this(new Uri(url), _staticClient, options)
+        {
+        }
+
+        
+        public Downloader(string url, HttpClient client) 
+                : this(new Uri(url), client, _staticOptions)
+        {
+        }
+
         public Downloader(Uri uri, HttpClient client, Options options)
         {
             _client = client;
@@ -61,7 +72,7 @@ namespace DDown
             _fullPath = Path.Combine(_options.OutputFolder, _fileName);
             _originalName = Path.GetFileNameWithoutExtension(_fileName);
             //Ensure the necessary folders are created
-            FileHelper.EnsureFoldersCreated();
+            // FileHelper.EnsureFoldersCreated();
         }
         #endregion
 

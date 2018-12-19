@@ -7,7 +7,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
-    <Version>1.0.0</Version>
+    <Version>1.0.2</Version>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Company>lyzerk</Company>
     <Authors>Alim Özdemir</Authors>
@@ -19,7 +19,7 @@
     <FileVersion>1.0.0.0</FileVersion>
     <Description>A downloader API for .net standard. It has partition downloading with stop/start features.</Description>
     <PackageTags>downloader, httpclient, range</PackageTags>
-
+    <PackageReleaseNotes>https://raw.githubusercontent.com/lyzerk/DDown/master/CHANGELOG.md</PackageReleaseNotes>
   </PropertyGroup>
 
 </Project>

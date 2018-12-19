@@ -5,9 +5,18 @@ using System.Diagnostics;
 using System.Runtime.Loader;
 using System.Threading;
 using System.Threading.Tasks;
+using CommandLine;
 
 namespace DDown.CLI
 {
+    public static class Extension
+    {
+        /*public static T GetResult<T>(ParserResult<T> result) {
+            var promise = new TaskCompletionSource<T>();
+            result.WithParsed(o => promise.TrySetResult(o));
+
+        } */
+    }
     class Program
     {
         private static bool _continued;
@@ -23,25 +32,82 @@ namespace DDown.CLI
             ev.Cancel = true;
         }
 
+        public static Task Error(IEnumerable<Error> errors)
+        {
+            foreach (var item in errors)
+            {
+                Console.WriteLine(item);
+            }
+            return Task.FromResult(0);
+        }
+
         private static int[] lefts;
         private static int top;
         public static object lockObject = new object();
-        async static Task Main(string[] args)
+        public static async Task Main(string[] args)
         {
             if (args.Length < 1)
                 ArgumentError("Please give a link to download.");
 
-            string link = args[0];
+            var rightArgs = new string[args.Length - 1];
+            Array.Copy(args, 1, rightArgs, 0, args.Length - 1);
 
+            string link = args[0];
+            Console.WriteLine(string.Join(',', args));
+            Console.WriteLine(string.Join(',', rightArgs));
+            var parser = CommandLine.Parser.Default.ParseArguments<CommandOptions>(rightArgs);
+            await parser.MapResult(async x =>
+            {
+                await Start(link, x);
+            },
+                errors => Task.FromResult(0)
+            );
+            /*parser
+                .WithParsed(async o =>
+                {
+                    Console.WriteLine("With parsed");
+                    try
+                    {
+                        await Start(link, o);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Console.WriteLine(ex);
+                    }
+                }); */
+            /* .WithNotParsed(errors =>
+            {
+                Console.WriteLine("Error");
+                foreach (var item in errors)
+                {
+                    Console.WriteLine(item);
+                }
+            }); */
+
+
+        }
+        static async Task Start(string link, CommandOptions options)
+        {
             //string link = "https://github.com/OpenShot/openshot-qt/releases/download/v2.4.1/OpenShot-v2.4.1-x86_64.dmg";
             //string link = "http://www.itu.edu.tr/docs/default-source/KurumsalKimlik-2017/itu-sunum.rar?sfvrsn=2";
             //var link = "https://media.forgecdn.net/files/2573/89/DBM-Core-7.3.31.zip";
+            // if (options.ClearConsole)
             Console.Clear();
-            //downloader = new Downloader(new Uri(link), new System.Net.Http.HttpClient(), new Options() { PartitionCount = 16 });
+
+            var downloadOptions = new Options();
+            downloadOptions.BufferSize = options.BufferSize;
+            downloadOptions.Override = options.Override;
+            downloadOptions.Timeout = options.Timeout;
+
+            if (options.PartitionCount != 0)
+                downloadOptions.PartitionCount = options.PartitionCount;
+
+            if (!string.IsNullOrEmpty(options.OutputFolder))
+                downloadOptions.OutputFolder = options.OutputFolder;
 
             Console.CancelKeyPress += Exit;
             downloader = new Downloader(link);
-            downloader.Progress += ReportProgress2;
+            downloader.Progress += ReportProgress;
 
             TimeLog.WriteLine("Preparing");
             var status = await downloader.PrepareAsync();
@@ -84,7 +150,7 @@ namespace DDown.CLI
             TimeLog.WriteLine("Download is finished");
         }
 
-        static void ReportProgress2(Report data)
+        static void ReportProgress(Report data)
         {
             lock (lockObject)
             {

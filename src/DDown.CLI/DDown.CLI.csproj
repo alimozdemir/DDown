@@ -2,19 +2,30 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.3.0" />
-    <PackageReference Include="DDown" Version="1.0.0" />
+    <PackageReference Include="DDown" Version="1.0.2" />
+    <!-- <ProjectReference Include="..\DDown\DDown.csproj" /> -->
   </ItemGroup>
 
 
   <PropertyGroup>
+    <AssemblyTitle>deget</AssemblyTitle>
+    <Copyright>Copyright Alim Ozdemir (lyzerk)</Copyright>
+    <Authors>Alim Ozdemir (lyzerk)</Authors>
     <OutputType>Exe</OutputType>
+    <Version>1.0.0</Version>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <LangVersion>latest</LangVersion>
     <RuntimeIdentifiers>win10-x64;osx-x64</RuntimeIdentifiers>
-    <ToolCommandName>ddm</ToolCommandName>
-    <PackageId>ddm</PackageId>
+    <ToolCommandName>deget</ToolCommandName>
+    <Product>deget</Product>
+    <Company>deget</Company>
+    <PackageId>deget</PackageId>
+    <Description>a downloader cli just like wget</Description>
     <PackAsTool>True</PackAsTool>
     <PackageOutputPath>./nupkg</PackageOutputPath>
+    <PackageProjectUrl>https://github.com/lyzerk/DDown</PackageProjectUrl>
+    <PackageLicenseUrl>https://raw.githubusercontent.com/lyzerk/DDown/master/LICENSE</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/lyzerk/DDown</RepositoryUrl>
   </PropertyGroup>
 
 </Project>

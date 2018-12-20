@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.Loader;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,10 +35,10 @@ namespace DDown.CLI
 
         public static Task Error(IEnumerable<Error> errors)
         {
-            foreach (var item in errors)
+            /*foreach (var item in errors)
             {
                 Console.WriteLine(item);
-            }
+            } */
             return Task.FromResult(0);
         }
 
@@ -46,47 +47,19 @@ namespace DDown.CLI
         public static object lockObject = new object();
         public static async Task Main(string[] args)
         {
-            if (args.Length < 1)
-                ArgumentError("Please give a link to download.");
+            var parser = CommandLine.Parser.Default.ParseArguments<CommandOptions>(args);
 
-            var rightArgs = new string[args.Length - 1];
-            Array.Copy(args, 1, rightArgs, 0, args.Length - 1);
-
-            string link = args[0];
-            Console.WriteLine(string.Join(',', args));
-            Console.WriteLine(string.Join(',', rightArgs));
-            var parser = CommandLine.Parser.Default.ParseArguments<CommandOptions>(rightArgs);
-            await parser.MapResult(async x =>
+            var task = parser.MapResult(opts =>
             {
-                await Start(link, x);
+                return Start(opts);
             },
-                errors => Task.FromResult(0)
+                errors => Error(errors)
             );
-            /*parser
-                .WithParsed(async o =>
-                {
-                    Console.WriteLine("With parsed");
-                    try
-                    {
-                        await Start(link, o);
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Console.WriteLine(ex);
-                    }
-                }); */
-            /* .WithNotParsed(errors =>
-            {
-                Console.WriteLine("Error");
-                foreach (var item in errors)
-                {
-                    Console.WriteLine(item);
-                }
-            }); */
 
-
+            await task;
         }
-        static async Task Start(string link, CommandOptions options)
+        
+        static async Task Start(CommandOptions options)
         {
             //string link = "https://github.com/OpenShot/openshot-qt/releases/download/v2.4.1/OpenShot-v2.4.1-x86_64.dmg";
             //string link = "http://www.itu.edu.tr/docs/default-source/KurumsalKimlik-2017/itu-sunum.rar?sfvrsn=2";
@@ -104,9 +77,12 @@ namespace DDown.CLI
 
             if (!string.IsNullOrEmpty(options.OutputFolder))
                 downloadOptions.OutputFolder = options.OutputFolder;
+            else if(options.DownloadFolder) 
+                downloadOptions.OutputFolder = 
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
 
             Console.CancelKeyPress += Exit;
-            downloader = new Downloader(link);
+            downloader = new Downloader(options.Link, downloadOptions);
             downloader.Progress += ReportProgress;
 
             TimeLog.WriteLine("Preparing");
@@ -129,15 +105,11 @@ namespace DDown.CLI
 
             Console.SetCursorPosition(0, top + downloader.PartitionCount);
             if (downloader.ConnectionLost)
-            {
                 TimeLog.WriteLine("Connection is lost.");
-            }
-
+            
             if (downloader.SourceException)
-            {
                 TimeLog.WriteLine("There exist a problem with source.");
-            }
-
+            
             if (!downloader.Canceled)
             {
                 TimeLog.WriteLine("Merging partitions");

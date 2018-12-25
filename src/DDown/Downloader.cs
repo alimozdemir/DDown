@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Runtime.Serialization.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,13 +46,13 @@ namespace DDown
         {
         }
 
-        public Downloader(string url, Options options) 
+        public Downloader(string url, Options options)
                 : this(new Uri(url), _staticClient, options)
         {
         }
 
-        
-        public Downloader(string url, HttpClient client) 
+
+        public Downloader(string url, HttpClient client)
                 : this(new Uri(url), client, _staticOptions)
         {
         }
@@ -150,26 +151,42 @@ namespace DDown
             }
         }
 
+        private async Task<Stream> GetBody(Partition partition)
+        {
+            if (_status.IsRangeSupported)
+            {
+                var message = new HttpRequestMessage(HttpMethod.Get, _uri)
+                {
+                    Headers =
+                    {
+                        Range = new RangeHeaderValue
+                        {
+                            Unit = "bytes",
+                            Ranges = {partition.GetHeader()}
+                        }
+                    }
+                };
+
+                var response = await _client.SendAsync(message);
+                var body = await response.Content.ReadAsStreamAsync();
+                return body;
+            }
+            else
+            {
+                var body = await _client.GetStreamAsync(_uri);
+                return body;
+            }
+        }
+
         private async Task DownloadPartitionAsync(Partition partition)
         {
             if (partition.Current == partition.Length)
                 return;
 
-            HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, _uri);
 
-            if (_status.IsRangeSupported)
+            using (var read = await GetBody(partition))
             {
-                message.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue();
-                message.Headers.Range.Unit = "bytes";
-                message.Headers.Range.Ranges.Add(partition.GetHeader());
-            }
-
-            using (var response = await _client.SendAsync(message))
-            {
-                response.EnsureSuccessStatusCode();
-                // System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable
                 using (var file = new FileStream(partition.Path, FileMode.OpenOrCreate, FileAccess.Write))
-                using (Stream read = await response.Content.ReadAsStreamAsync())
                 {
                     var buffer = new byte[_options.BufferSize];
 
@@ -226,8 +243,6 @@ namespace DDown
                     while (!partition.IsFinished() && !_canceled);
                 }
             }
-
-
         }
 
         protected async Task MergePartitionsAsync()

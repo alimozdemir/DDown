@@ -153,29 +153,21 @@ namespace DDown
 
         private async Task<Stream> GetBody(Partition partition)
         {
-            if (_status.IsRangeSupported)
+            var message = new HttpRequestMessage(HttpMethod.Get, _uri)
             {
-                var message = new HttpRequestMessage(HttpMethod.Get, _uri)
+                Headers =
                 {
-                    Headers =
+                    Range = new RangeHeaderValue
                     {
-                        Range = new RangeHeaderValue
-                        {
-                            Unit = "bytes",
-                            Ranges = {partition.GetHeader()}
-                        }
+                        Unit = "bytes",
+                        Ranges = {partition.GetHeader()}
                     }
-                };
+                }
+            };
 
-                var response = await _client.SendAsync(message);
-                var body = await response.Content.ReadAsStreamAsync();
-                return body;
-            }
-            else
-            {
-                var body = await _client.GetStreamAsync(_uri);
-                return body;
-            }
+            var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
+            var body = await response.Content.ReadAsStreamAsync();
+            return body;
         }
 
         private async Task DownloadPartitionAsync(Partition partition)

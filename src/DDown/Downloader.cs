@@ -78,13 +78,14 @@ namespace DDown
         #endregion
 
 
-        public async Task MergeAsync()
+        public async Task<string> MergeAsync()
         {
             if (_status.Partitions.Any(i => !i.IsFinished()))
                 throw new Exception("Something went wrong, some of the partitions does not completed. Also, you can't merge the paused or stopped downloads.");
 
             //merge all
-            await MergePartitionsAsync();
+            var fullPath = await MergePartitionsAsync();
+            return fullPath;
         }
 
         public void Pause()
@@ -150,94 +151,84 @@ namespace DDown
                 }
             }
         }
-
-        private async Task<Stream> GetBody(Partition partition)
-        {
-            var message = new HttpRequestMessage(HttpMethod.Get, _uri)
-            {
-                Headers =
-                {
-                    Range = new RangeHeaderValue
-                    {
-                        Unit = "bytes",
-                        Ranges = {partition.GetHeader()}
-                    }
-                }
-            };
-
-            var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
-            var body = await response.Content.ReadAsStreamAsync();
-            return body;
-        }
-
         private async Task DownloadPartitionAsync(Partition partition)
         {
             if (partition.Current == partition.Length)
                 return;
 
+            var message = new HttpRequestMessage(HttpMethod.Get, _uri);
 
-            using (var read = await GetBody(partition))
+            if (_status.IsRangeSupported)
             {
-                using (var file = new FileStream(partition.Path, FileMode.OpenOrCreate, FileAccess.Write))
+                message.Headers.Range = new RangeHeaderValue
                 {
-                    var buffer = new byte[_options.BufferSize];
+                    Unit = "bytes",
+                    Ranges = { partition.GetHeader() }
+                };
+            }
 
-                    // if it is continued download, seek to end.
-                    if (_status.Continued)
-                        file.Seek(0, SeekOrigin.End);
+            using (var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead))
+            using (var read = await response.Content.ReadAsStreamAsync())
+            using (var file = new FileStream(partition.Path, FileMode.OpenOrCreate, FileAccess.Write))
+            {
+                var buffer = new byte[_options.BufferSize];
 
-                    do
+                // if it is continued download, seek to end.
+                if (_status.Continued)
+                    file.Seek(0, SeekOrigin.End);
+
+                do
+                {
+                    int requestSize = 0;
+
+                    if (partition.Current + buffer.Length > partition.Length)
+                        requestSize = (int)partition.Length - (int)partition.Current;
+                    else
+                        requestSize = buffer.Length;
+
+                    if (requestSize > 0)
                     {
-                        int requestSize = 0;
+                        // prepare tasks
+                        var readRequest = read.ReadAsync(buffer, 0, requestSize); // task cancel
+                        var timeout = Task.Delay(_options.Timeout);
 
-                        if (partition.Current + buffer.Length > partition.Length)
-                            requestSize = (int)partition.Length - (int)partition.Current;
-                        else
-                            requestSize = buffer.Length;
+                        // wait for a task to complete
+                        Task.WaitAny(readRequest, timeout);
 
-                        if (requestSize > 0)
+                        // if readRequest is not completed then timeout will be.
+                        if (timeout.IsCompleted)
                         {
-                            // prepare tasks
-                            var readRequest = read.ReadAsync(buffer, 0, requestSize); // task cancel
-                            var timeout = Task.Delay(_options.Timeout);
+                            // cancel the all processes
 
-                            // wait for a task to complete
-                            Task.WaitAny(readRequest, timeout);
+                            _canceled = true;
+                            _connectionLost = true;
+                        }
+                        else
+                        {
+                            // get the result of the already completed task for reading
+                            var count = await readRequest;
 
-                            // if readRequest is not completed then timeout will be.
-                            if (timeout.IsCompleted)
+                            if (count == 0) // 0 bytes means; something is not right
                             {
-                                // cancel the all processes
-
                                 _canceled = true;
-                                _connectionLost = true;
+                                _sourceException = true;
                             }
                             else
                             {
-                                // get the result of the already completed task for reading
-                                var count = await readRequest;
-
-                                if (count == 0) // 0 bytes means; something is not right
-                                {
-                                    _canceled = true;
-                                    _sourceException = true;
-                                }
-                                else
-                                {
-                                    await file.WriteAsync(buffer, 0, count);
-                                    partition.Write(count);
-                                    partition.Notify(this.Progress);
-                                }
+                                await file.WriteAsync(buffer, 0, count);
+                                partition.Write(count);
+                                partition.Notify(this.Progress);
                             }
                         }
-
                     }
-                    while (!partition.IsFinished() && !_canceled);
+
                 }
+                while (!partition.IsFinished() && !_canceled);
+
             }
         }
 
-        protected async Task MergePartitionsAsync()
+        protected async Task<string> MergePartitionsAsync()
         {
             if (_options.Override)
             {
@@ -271,6 +262,7 @@ namespace DDown
             }
 
             _completed = true;
+            return _fullPath;
         }
         #endregion
 

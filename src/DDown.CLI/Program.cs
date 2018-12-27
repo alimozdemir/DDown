@@ -58,7 +58,7 @@ namespace DDown.CLI
 
             await task;
         }
-        
+
         static async Task Start(CommandOptions options)
         {
             //string link = "https://github.com/OpenShot/openshot-qt/releases/download/v2.4.1/OpenShot-v2.4.1-x86_64.dmg";
@@ -77,8 +77,8 @@ namespace DDown.CLI
 
             if (!string.IsNullOrEmpty(options.OutputFolder))
                 downloadOptions.OutputFolder = options.OutputFolder;
-            else if(options.DownloadFolder) 
-                downloadOptions.OutputFolder = 
+            else if (options.DownloadFolder)
+                downloadOptions.OutputFolder =
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
 
             Console.CancelKeyPress += Exit;
@@ -106,20 +106,25 @@ namespace DDown.CLI
             Console.SetCursorPosition(0, top + downloader.PartitionCount);
             if (downloader.ConnectionLost)
                 TimeLog.WriteLine("Connection is lost.");
-            
+
             if (downloader.SourceException)
                 TimeLog.WriteLine("There exist a problem with source.");
-            
+
             if (!downloader.Canceled)
             {
-                TimeLog.WriteLine("Merging partitions");
-                await downloader.MergeAsync();
+                TimeLog.WriteLine("Merging partitions.");
+                var path = await downloader.MergeAsync();
+                sw.Stop();
+                TimeLog.WriteLine($"Total elapsed time {sw.ElapsedMilliseconds} ms");
+                TimeLog.WriteLine("Download is finished.");
+                TimeLog.WriteLine($"File path: {path}");
             }
-
-            sw.Stop();
-
-            TimeLog.WriteLine($"Total elapsed time {sw.ElapsedMilliseconds} ms");
-            TimeLog.WriteLine("Download is finished");
+            else
+            {
+                TimeLog.WriteLine("Download is canceled.");
+                sw.Stop();
+                TimeLog.WriteLine($"Total elapsed time {sw.ElapsedMilliseconds} ms");
+            }
         }
 
         static void ReportProgress(Report data)

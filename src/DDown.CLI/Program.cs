@@ -42,7 +42,6 @@ namespace DDown.CLI
             return Task.FromResult(0);
         }
 
-        private static int[] lefts;
         private static int top;
         public static object lockObject = new object();
         public static async Task Main(string[] args)
@@ -98,7 +97,6 @@ namespace DDown.CLI
             Stopwatch sw = new Stopwatch();
             sw.Start();
 
-            lefts = new int[downloader.PartitionCount];
             top = Console.CursorTop;
 
             await downloader.StartAsync();
@@ -126,26 +124,27 @@ namespace DDown.CLI
                 TimeLog.WriteLine($"Total elapsed time {sw.ElapsedMilliseconds} ms");
             }
         }
-
+        static int lastAvailableSpace = 0;
         static void ReportProgress(Report data)
         {
             lock (lockObject)
             {
-                var left = lefts[data.PartitionId];
                 var topPartition = top + data.PartitionId;
                 string template = $"[{DateTime.Now.ToShortTimeString()}] P{(data.PartitionId + 1).ToString().PadRight(2)}: {(data.Percent + "%").PadRight(4)}";
-                var howMuch = data.Percent - left;
+                var availableSpaces = Console.BufferWidth - template.Length;
+                if (availableSpaces <= 0)
+                    throw new Exception("Need a bigger terminal view.");
+                var howMuch = availableSpaces > 100 ? data.Percent : ((data.Percent * availableSpaces) / 100);
+                
+                if (lastAvailableSpace != availableSpaces)
+                    Console.Write(new string(' ', Console.BufferWidth));
 
+                lastAvailableSpace = availableSpaces;
                 // set the header
                 Console.SetCursorPosition(0, topPartition);
                 Console.Write(template);
 
-                // set the bars
-                Console.SetCursorPosition(left + template.Length, topPartition);
                 Console.Write(new string('|', howMuch));
-
-                // update the last state
-                lefts[data.PartitionId] = left + (howMuch);
             }
         }
 

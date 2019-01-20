@@ -21,6 +21,7 @@ namespace DDown.Infrastructures
             saveModel.Partitions = download.GetPartitions();
             saveModel.Url = download.GetUrl();
             saveModel.Length = download.Length;
+            saveModel.IsRangeSupported = download.IsRangeSupported;
             var ser = JsonConvert.SerializeObject(saveModel, Formatting.Indented);
             File.WriteAllText(FileHelper.GetSavePath(id + ".json"), saveModel.Serialize());
         }

@@ -25,6 +25,9 @@ namespace DDown.CLI
 
         [Option('d', "downloadFolder", Default = false, Required = false, HelpText = "The file download location set to User's download folder.")]
         public bool DownloadFolder {get; set;}
+        
+        [Option('s', "startover", Default = false, Required = false, HelpText = "Startover the download")]
+        public bool Startover { get; set; }
 
         /* [Option('i', "info", Default = false, Required = false, HelpText = "Information about this version.")]
         public bool Information {get; set;}

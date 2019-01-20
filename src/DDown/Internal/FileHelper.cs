@@ -47,6 +47,14 @@ namespace DDown.Internal
 
             return GetFileName(new Uri(url));
         }
+        public static void RemovePartition(string path)
+        {
+            string fullPath = GetPartitionPath(path);
+            if (File.Exists(fullPath)) 
+            {
+                File.Delete(fullPath);
+            }
+        }
 
         public static string GetFileName(Uri uri)
         {

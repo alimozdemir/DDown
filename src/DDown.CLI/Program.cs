@@ -70,7 +70,7 @@ namespace DDown.CLI
             downloadOptions.BufferSize = options.BufferSize;
             downloadOptions.Override = options.Override;
             downloadOptions.Timeout = options.Timeout;
-
+            downloadOptions.Startover = options.Startover;
             if (options.PartitionCount != 0)
                 downloadOptions.PartitionCount = options.PartitionCount;
 
@@ -85,6 +85,10 @@ namespace DDown.CLI
             downloader.Progress += ReportProgress;
 
             TimeLog.WriteLine("Preparing");
+
+            if (options.Startover)
+                TimeLog.WriteLine("The download startover.");
+                
             var status = await downloader.PrepareAsync();
 
             TimeLog.WriteLine($"Source {downloader.Url}, {(status.IsRangeSupported ? "Range is supported" : "Range is not supported") }");
@@ -135,7 +139,7 @@ namespace DDown.CLI
                 if (availableSpaces <= 0)
                     throw new Exception("Need a bigger terminal view.");
                 var howMuch = availableSpaces > 100 ? data.Percent : ((data.Percent * availableSpaces) / 100);
-                
+
                 if (lastAvailableSpace != availableSpaces)
                     Console.Write(new string(' ', Console.BufferWidth));
 

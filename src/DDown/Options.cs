@@ -16,6 +16,7 @@ namespace DDown
         public string OutputFolder { get; set; } = Environment.CurrentDirectory;
         public string Name { get; set; } = default(string);
         public bool Override { get; set; } = false;
+        public bool Startover { get; set; } = false;
         public int BufferSize { get; set; } = 8192;
         public int Timeout { get; set; } = 10000;
     }

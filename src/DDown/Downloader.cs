@@ -30,7 +30,7 @@ namespace DDown
         public bool SourceException => _sourceException;
         public long Length => _status.Length;
         public int PartitionCount => _options.PartitionCount;
-
+        public bool IsRangeSupported => _status.IsRangeSupported;
         public delegate void ProgressHandler(Report report);
         public event ProgressHandler Progress;
         public string FileName => _fileName;
@@ -338,10 +338,31 @@ namespace DDown
 
             if (result.model != null)
             {
-                CalculatePartitionsRemain(result.model);
+                if (_options.Startover)
+                {
+                    result = (string.Empty, null);
+                }
+                else
+                {
+                    CalculatePartitionsRemain(result.model);
+                }
             }
 
             return result.model;
+        }
+
+        /// <summary>
+        /// This method removes uncompleted download.
+        /// </summary>
+        internal void RemoveDownload ((string fileName, Save model) info) 
+        {
+            for (int i = 0; i < info.model.Partitions.Count; i++)
+            {
+                var fileName = i + "." + info.fileName;
+                FileHelper.RemovePartition(fileName);
+            }
+            
+            SaveModelFactory.RemoveSaveModel(info.fileName);
         }
 
         internal void DeleteAll()

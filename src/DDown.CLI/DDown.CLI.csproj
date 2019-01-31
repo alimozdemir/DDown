@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.3.0" />
-    <PackageReference Include="DDown" Version="1.0.4" />-->
+    <PackageReference Include="DDown" Version="1.0.4" />
     <!-- <ProjectReference Include="..\DDown\DDown.csproj" /> -->
   </ItemGroup>
 
